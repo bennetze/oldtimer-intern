@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Oldtimer-Fahrzeugeditor</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="workflow.css" />
+
+  </head>
+  <body>
+    <main id="editor-shell">
+      <nav class="step-nav" aria-label="Bearbeitungsschritte">
+        <ol>
+          <li><button type="button" data-step-target="project"><span class="step-nav__index">01</span><span class="step-nav__label">Projektordner</span><span class="step-nav__status" data-step-status="project">Offen</span></button></li>
+          <li><button type="button" data-step-target="selection"><span class="step-nav__index">02</span><span class="step-nav__label">Fahrzeug auswählen</span><span class="step-nav__status" data-step-status="selection">Offen</span></button></li>
+          <li>
+            <button type="button" data-step-target="vehicle" aria-current="step">
+              <span class="step-nav__index">03</span>
+              <span class="step-nav__label">Fahrzeug &amp; Kategorie</span>
+              <span class="step-nav__status" data-step-status="vehicle">Offen</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-step-target="images">
+              <span class="step-nav__index">04</span>
+              <span class="step-nav__label">Bilder</span>
+              <span class="step-nav__status" data-step-status="images">Offen</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-step-target="content">
+              <span class="step-nav__index">05</span>
+              <span class="step-nav__label">Inhalte</span>
+              <span class="step-nav__status" data-step-status="content" aria-live="polite"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-step-target="review">
+              <span class="step-nav__index">06</span>
+              <span class="step-nav__label">Prüfen &amp; speichern</span>
+              <span class="step-nav__status" data-step-status="review">Ausstehend</span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+
+      <section class="panel project-panel step-panel" data-step="project" aria-labelledby="project-title">
+        <div class="panel__head"><h1 id="project-title">Website-Projektordner auswählen</h1></div>
+        <div class="panel__body">
+          <p>Wählen Sie den vollständigen Website-Ordner mit „src“ und „public“, nicht nur den Ordner „Projekte“. Alle Dateien bleiben auf diesem Computer.</p>
+          <button class="btn btn--primary" id="choose-project" type="button">Projektordner auswählen</button>
+          <p id="project-name" class="hint"></p>
+          <p id="project-feedback" role="status" aria-live="polite"></p>
+          <button class="btn" id="recover-project" type="button" hidden>Unterbrochenen Speichervorgang wiederherstellen</button>
+        </div>
+      </section>
+      <section class="panel project-panel step-panel" data-step="selection" aria-labelledby="selection-title" hidden>
+        <div class="panel__head"><h2 id="selection-title">Fahrzeug auswählen</h2></div>
+        <div class="panel__body">
+          <div class="selection-actions">
+            <div class="field"><label for="category-filter">Kategorie</label><select id="category-filter"><option value="">Alle Kategorien</option><option value="aktuelle-projekte">Aktuelle Projekte</option><option value="vergangene-projekte">Abgeschlossene Projekte</option><option value="fahrzeugangebote">Fahrzeugangebote</option></select></div>
+            <button class="btn btn--primary" id="start-new" type="button">Neues Fahrzeug</button>
+            <button class="btn btn--secondary" id="refresh-project" type="button">Liste aktualisieren</button>
+          </div>
+          <div id="import-options-slot"></div>
+          <p id="selection-feedback" role="status" aria-live="polite"></p>
+          <div class="vehicle-list" id="vehicle-list"></div>
+        </div>
+      </section>
+      <div id="start-screen" hidden><div id="start-feedback"></div></div>
+      <div class="workspace-status" id="workspace-status" role="status" aria-live="polite" hidden></div>
+
+      <form id="vehicle-form" class="flow" novalidate>
+        <section class="panel import-source" aria-labelledby="import-title" hidden>
+          <div class="panel__head"><h2 id="import-title">Bestehendes Fahrzeug importieren</h2></div>
+          <div class="panel__body">
+            <div class="field"><label for="import-folder">Fahrzeugordner auswählen</label><input id="import-folder" type="file" webkitdirectory multiple /></div>
+            <details><summary>Oder einzelne Dateien auswählen</summary><label for="import-files">vehicle.json und alle Bilder gemeinsam auswählen</label><input id="import-files" type="file" multiple accept=".json,.jpg,.jpeg,.png,.webp,.avif" /></details>
+            <p id="import-summary" class="notice"></p>
+            <button class="btn" type="button" id="use-today">Heutiges Datum verwenden</button>
+          </div>
+        </section>
+
+        <section class="panel step-panel" data-step="vehicle" aria-labelledby="details-title">
+          <div class="panel__head">
+            <h2 id="details-title">Fahrzeug</h2>
+          </div>
+          <div class="panel__body">
+            <div class="form-grid">
+              <div class="field field--wide">
+                <label class="required" for="category">Kategorie</label>
+                <select id="category" required>
+                  <option value="aktuelle-projekte">Aktuelle Projekte</option>
+                  <option value="vergangene-projekte">
+                    Vergangene Projekte
+                  </option>
+                  <option value="fahrzeugangebote">Fahrzeugangebote</option>
+                </select>
+              </div>
+              <div class="field field--wide">
+                <label class="required" for="title">Titel</label>
+                <input
+                  id="title"
+                  type="text"
+                  placeholder="BMW 507 Roadster, Baujahr 1957"
+                  required
+                />
+              </div>
+              <div class="field field--wide">
+                <div class="inline-row">
+                  <label class="required" for="slug">Dateiname / Slug</label>
+                  <button
+                    class="btn btn--small btn--ghost"
+                    type="button"
+                    id="refresh-slug"
+                  >
+                    Aus deutschem Titel neu erzeugen
+                  </button>
+                </div>
+                <input
+                  id="slug"
+                  type="text"
+                  pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                  placeholder="bmw-507-roadster-baujahr-1957"
+                  required
+                />
+                <p class="hint">
+                  Nur Kleinbuchstaben, Ziffern und Bindestriche. Wird als Seiten- und Ordnername verwendet.
+                </p>
+              </div>
+              <details class="advanced field--wide" id="technical-details">
+                <summary>Technische Angaben</summary>
+                <div class="advanced__body">
+                  <label class="check-label" for="auto-order">
+                    <input id="auto-order" type="checkbox" checked />
+                    <span>Sortierwert automatisch erzeugen.</span>
+                  </label>
+                  <label
+                    class="check-label check-label--nested"
+                    for="prepend-order"
+                  >
+                    <input id="prepend-order" type="checkbox" />
+                    <span
+                      >Neues Fahrzeug am Anfang einfügen
+                      <small>(sonst am Ende)</small>.</span
+                    >
+                  </label>
+                  <div class="field" id="manual-order-wrap" hidden>
+                    <label class="required" for="order"
+                      >Manueller Sortierwert</label
+                    >
+                    <input
+                      id="order"
+                      type="number"
+                      step="1"
+                      inputmode="numeric"
+                      disabled
+                    />
+                    <p class="hint">
+                      Kleinere Zahlen erscheinen zuerst; negative Zahlen sind erlaubt. Jede Zahl muss innerhalb ihrer Kategorie eindeutig sein.
+                    </p>
+                  </div>
+                </div>
+              </details>
+              <div class="field">
+                <label for="year">Baujahr</label>
+                <input
+                  id="year"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="4"
+                  pattern="[0-9]{4}"
+                  placeholder="1957"
+                />
+              </div>
+              <div class="field">
+                <label class="required" for="date-modified"
+                  >Änderungsdatum</label
+                >
+                <input id="date-modified" type="date" required />
+              </div>
+              <div class="field field--wide">
+                <label for="source-url">Quell-URL (automatisch)</label>
+                <input
+                  id="source-url"
+                  type="url"
+                  readonly
+                  aria-readonly="true"
+                />
+                <p class="hint">
+                  Neue Fahrzeuge und Kategoriewechsel verwenden die Seiten-URL. Bestehende Fahrzeuge behalten ihre ursprüngliche Quell-URL.
+                </p>
+              </div>
+              <div class="field field--wide">
+                <label class="required" for="description"
+                  >Kurzbeschreibung</label
+                >
+                <textarea
+                  id="description"
+                  maxlength="500"
+                  placeholder="Kurze Zusammenfassung für Suchmaschinen und die Vorschau in sozialen Medien."
+                  required
+                ></textarea>
+                <p class="hint">
+                  <span id="description-count">0</span>/500 Zeichen
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel step-panel" data-step="images" aria-labelledby="card-title" hidden>
+          <div class="panel__head">
+            <h2 id="card-title">Kartenbild</h2>
+          </div>
+          <div class="panel__body">
+            <div class="file-picker" id="card-drop">
+              <div>
+                <label for="card-file"
+                  >Kartenbild auswählen oder hier ablegen</label
+                ><br />
+                <input
+                  id="card-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                />
+              </div>
+            </div>
+            <div class="card-preview" id="card-preview" hidden>
+              <img id="card-preview-image" alt="Vorschau des Kartenbilds" />
+              <div class="field">
+                <label class="required" for="card-alt">Alternativtext</label>
+                <input id="card-alt" type="text" required />
+                <p class="hint" id="card-file-info"></p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel--gallery step-panel" data-step="images" aria-labelledby="images-title" hidden>
+          <div class="panel__head">
+            <h2 id="images-title">Galeriebilder</h2>
+          </div>
+          <div class="panel__body">
+            <div class="file-picker" id="gallery-drop">
+              <div>
+                <label for="gallery-files"
+                  >Mehrere Bilder auswählen oder hier ablegen</label
+                ><br />
+                <input
+                  id="gallery-files"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                />
+              </div>
+            </div>
+            <div class="field" style="margin-top: 1rem">
+              <label class="required" for="lead-image"
+                >Hauptbild der Detailseite</label
+              >
+              <select id="lead-image" disabled>
+                <option value="">Zuerst ein Bild importieren</option>
+              </select>
+            </div>
+            <div class="field" style="margin-top: 0.75rem">
+              <label class="required" for="lead-alt"
+                >Alternativtext des Hauptbilds</label
+              >
+              <input id="lead-alt" type="text" required />
+            </div>
+            <div id="image-list" class="image-list" aria-live="polite">
+              <div class="empty">Noch keine Galeriebilder importiert.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel--content step-panel" data-step="content" aria-labelledby="content-title" hidden>
+          <div class="panel__head">
+            <h2 id="content-title">Inhalte</h2>
+          </div>
+          <div class="panel__body">
+            <div class="block-controls">
+              <button class="btn" type="button" data-add-block="copy">
+                + Textblock
+              </button>
+              <button class="btn" type="button" data-add-block="gallery">
+                + Galerieblock
+              </button>
+              <button class="btn" type="button" data-add-block="contact">
+                + Kontaktblock
+              </button>
+            </div>
+            <div id="block-list" class="block-list" aria-live="polite">
+              <div class="empty">Noch keine Inhaltsblöcke vorhanden.</div>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      <aside class="sidebar step-panel" data-step="review" aria-label="Prüfen und speichern" hidden>
+        <section class="panel review-panel">
+          <div class="panel__head"><h2>Prüfen &amp; speichern</h2></div>
+          <div class="panel__body">
+            <div class="review-state" id="review-state" aria-live="polite"></div>
+            <dl class="summary">
+              <div>
+                <dt>Kategorie</dt>
+                <dd id="summary-category">aktuelle-projekte</dd>
+              </div>
+              <div>
+                <dt>Slug</dt>
+                <dd id="summary-slug">—</dd>
+              </div>
+              <div>
+                <dt>Sortierwert</dt>
+                <dd id="summary-order">—</dd>
+              </div>
+              <div>
+                <dt>Bilder</dt>
+                <dd id="summary-images">0</dd>
+              </div>
+              <div>
+                <dt>Blöcke</dt>
+                <dd id="summary-blocks">0</dd>
+              </div>
+            </dl>
+            <pre class="file-tree" id="file-tree">
+aktuelle-projekte/
+└── …</pre
+            >
+            <div id="save-review" aria-live="polite"></div>
+            <button class="btn btn--primary" id="prepare-save" type="button">Änderungen prüfen</button>
+            <button class="btn btn--primary" id="save-project" type="button" disabled>Im Projekt speichern</button>
+            <p class="hint">Gespeichert werden die Quelldateien. Die hochladbare Website (dist) muss separat erstellt werden.</p>
+            <p class="export-note">Die ZIP-Datei wird nur lokal erstellt. Vor Änderungen an der Website muss sie geprüft werden.</p>
+            <button
+              class="btn btn--secondary generate"
+              id="generate"
+              type="button"
+            >
+              ZIP erstellen
+            </button>
+            <p class="status" id="status" role="status" aria-live="polite">
+              Noch nicht geprüft
+            </p>
+            <details class="after-export" id="after-export" hidden>
+              <summary>ZIP im Website-Projekt prüfen</summary>
+              <p>Die ZIP-Datei ist eine alternative Ausgabe für eine getrennte, geprüfte Übernahme. Nicht über vorhandene Website-Dateien entpacken. Für das direkte Speichern verwenden Sie „Im Projekt speichern“.</p>
+            </details>
+          </div>
+        </section>
+      </aside>
+
+      <div class="step-actions" aria-label="Schrittnavigation">
+        <button class="btn btn--secondary" type="button" id="step-back">Zurück</button>
+        <span id="step-position">Schritt 1 von 6</span>
+        <button class="btn btn--primary" type="button" id="step-next">Weiter</button>
+      </div>
+    </main>
+
+    <script src="project-access.js"></script>
+    <script src="project-save.js"></script>
+    <script src="project-ui.js"></script>
+    <script src="editor.js"></script>
+  </body>
+</html>

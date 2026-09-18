@@ -1,0 +1,58 @@
+/* The entire workflow uses the same restrained editor palette. */
+body { padding-top: 0; }
+#editor-shell { padding-top: 36px; }
+.step-nav { align-self: start; position: sticky; top: 28px; }
+.step-nav ol { display: flex; flex-direction: column; gap: 0; }
+.step-nav li { min-width: 0; }
+.step-nav button { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 5px 10px; width: 100%; padding: 15px 12px; border: 0; border-bottom: 1px solid #d9d9d9; border-radius: 0; text-align: left; background: transparent; }
+.step-nav button::before, .step-nav button::after { display: none; }
+.step-nav__index { display: block; grid-row: 1 / 3; color: #777; font-size: 12px; }
+.step-nav__label { font-size: 13px; line-height: 1.4; }
+.step-nav__status { grid-column: 2; font-size: 11px; }
+.step-nav button[aria-current="step"] { background: #ededed; color: #111; box-shadow: inset 3px 0 #111; }
+.step-nav button[aria-current="step"] .step-nav__index, .step-nav button[aria-current="step"] .step-nav__status { color: #555; }
+.step-nav button:disabled { opacity: .45; cursor: default; }
+.step-nav [data-step-status="content"] { display: block; }
+.step-nav .content-indicator { display: none; }
+
+
+.project-panel { grid-column: 2; min-width: 0; }
+.project-panel h1 { font: inherit; font-size: 26px; margin: 0; letter-spacing: -.025em; }
+.project-panel .panel__body { display: grid; gap: 20px; }
+.project-panel .btn { justify-self: start; }
+.selection-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; }
+.selection-actions .field { flex: 1 1 220px; }
+.vehicle-list { display: grid; }
+.vehicle-list-head, .vehicle-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 20px; padding: 16px 8px; border-bottom: 1px solid #ddd; }
+.vehicle-list-head { font-size: 12px; color: #666; }
+.vehicle-row { width: 100%; text-align: left; background: transparent; border-top: 0; border-left: 0; border-right: 0; color: inherit; font: inherit; cursor: pointer; }
+.vehicle-row:hover { background: #f0f0f0; }
+.vehicle-row span { overflow-wrap: anywhere; }
+.vehicle-row time { font-size: 13px; }
+#save-review { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+#save-review details { white-space: normal; }
+#save-review pre { white-space: pre-wrap; max-height: 280px; overflow: auto; font-size: 12px; }
+#project-feedback, #selection-feedback { white-space: pre-wrap; overflow-wrap: anywhere; }
+.feedback-error { color: #9a2424; }
+#start-screen[hidden], [hidden] { display: none !important; }
+#prepare-save, #save-project { width: 100%; margin-bottom: 10px; }
+@media (max-width: 1000px) {
+  .step-nav { position: static; grid-column: 1 / -1; }
+  .step-nav ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .step-nav button { height: 100%; }
+  .project-panel { grid-column: 1 / -1; }
+}
+@media (max-width: 550px) {
+  #editor-shell { padding-top: 16px; }
+  .step-nav ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .step-nav button { padding: 10px 8px; grid-template-columns: 20px minmax(0, 1fr); gap: 4px; }
+  .step-nav__label { font-size: 12px; }
+  .vehicle-row, .vehicle-list-head { grid-template-columns: minmax(0, 1fr) 92px; gap: 12px; }
+  .project-panel h1 { font-size: 22px; }
+}
+/* Override the old rail's explicit grid placement, including its mobile rules. */
+.step-nav__index { grid-column: 1; grid-row: 1 / 3; align-self: start; padding-top: 3px; }
+.step-nav__label { grid-column: 2; grid-row: 1; }
+.step-nav__status { grid-column: 2; grid-row: 2; max-width: none; text-align: left; }
+.step-nav li { border: 0; }
+.step-nav ol { border-left: 0; }
