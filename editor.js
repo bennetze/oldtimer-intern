@@ -64,6 +64,10 @@
           return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
         }
 
+        function validVehicleFilename(value) {
+          return typeof value === 'string' && value.length <= 255 && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) && !value.includes('..') && !value.endsWith('.') && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value);
+        }
+
         function validateVehicleRecord(record, checkHtml = () => {}, { legacy = false } = {}) {
           const fail = (message) => { throw new Error(`vehicle.json: ${message}`); };
           const object = (value, allowed, context) => {
@@ -72,10 +76,10 @@
           };
           const text = (value, context) => { if (typeof value !== 'string' || !value.trim()) fail(`${context}: Text ist erforderlich.`); };
           const image = (value) => {
-            if (typeof value !== 'string' || !/^\.\/[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(value) || value.includes('..')) fail(`Ungültiger Bildpfad: ${value}`);
+            if (typeof value !== 'string' || !/^\.\/[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(value) || !validVehicleFilename(value.slice(2)) || !validVehicleFilename(value.slice(2).replace(/\.[^.]+$/, '.webp'))) fail(`Ungültiger Bildpfad: ${value}`);
           };
           object(record, ['slug', 'category', 'title', 'description', 'sourceUrl', 'order', 'dateModified', 'year', 'cardImage', 'cardImageAlt', 'leadImage', 'leadImageAlt', 'blocks', 'titleEn', 'descriptionEn', 'cardImageAltEn', 'leadImageAltEn'], 'Fahrzeug');
-          if (typeof record.slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.slug) || ['index', 'seite'].includes(record.slug)) fail('Ungültiger oder reservierter Slug.');
+          if (typeof record.slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.slug) || !validVehicleFilename(record.slug + '.astro') || ['index', 'seite'].includes(record.slug)) fail('Ungültiger oder reservierter Slug.');
           if (!['aktuelle-projekte', 'vergangene-projekte', 'fahrzeugangebote'].includes(record.category)) fail('Ungültige Kategorie.');
           for (const key of ['title', 'description', 'cardImageAlt', 'leadImageAlt']) text(record[key], key);
           for (const key of ['titleEn', 'descriptionEn', 'cardImageAltEn', 'leadImageAltEn']) {
@@ -106,9 +110,9 @@
                 object(item, ['src', 'alt', 'caption', 'altEn', 'captionEn'], `Galerie ${index + 1}`);
                 image(item.src); text(item.alt, `Galerie ${index + 1}: Alternativtext`);
                 if (!legacy || item.altEn !== undefined) text(item.altEn, `Galerie ${index + 1}: Englischer Alternativtext`);
+                if (item.caption !== undefined && typeof item.caption !== 'string') fail('Die Bildunterschrift muss Text sein.');
                 if (item.captionEn !== undefined && typeof item.captionEn !== 'string') fail('Die englische Bildunterschrift muss Text sein.');
                 if (!legacy && Boolean(item.caption?.trim()) !== Boolean(item.captionEn?.trim())) fail('Bildunterschriften müssen in beiden Sprachen vorhanden sein oder in beiden fehlen.');
-                if (item.caption !== undefined && typeof item.caption !== 'string') fail('Die Bildunterschrift muss Text sein.');
               }
             } else fail(`Unbekannter Blocktyp in Block ${index + 1}.`);
           }
@@ -177,7 +181,16 @@
         dateActions.append(fields.dateModified, $("#use-today"));
         const completion = document.createElement("p"); completion.id = "language-completion"; completion.className = "hint";
         $("#generate").before(completion);
-        document.addEventListener("input", () => { refreshGalleryDefaults(); updateCompletion(); updateStepStatus(); });
+        let pendingChange = false;
+        function notifyChange(defer = false) {
+          workflow?.invalidateReview();
+          if (!defer) { refreshGalleryDefaults(); updateSummary(); return; }
+          if (pendingChange) return;
+          pendingChange = true;
+          queueMicrotask(() => { pendingChange = false; refreshGalleryDefaults(); updateSummary(); });
+        }
+        document.addEventListener("input", () => notifyChange(true));
+        document.addEventListener("change", () => notifyChange(true));
         function autoAltEn(index) {
           const title = fields.titleEn.value.trim();
           return title ? `${title} – photograph ${index + 1} in the vehicle record` : "";
@@ -406,14 +419,21 @@
           const encoder = new TextEncoder();
           const names = new Set();
           let size = 22;
+          let payload = 0, folderFiles = 0;
           for (const entry of entries) {
             if (!/^[a-z0-9-]+\/[a-z0-9-]+(?:\/[A-Za-z0-9._-]+|\.astro)$/.test(entry.name) || entry.name.includes("..") || names.has(entry.name.toLowerCase())) throw new Error("Ungültiger oder doppelter ZIP-Dateiname.");
             names.add(entry.name.toLowerCase());
             const length = encoder.encode(entry.name).length;
             const bytes = typeof entry.data === "string" ? encoder.encode(entry.data).length : entry.data.size;
+            if (!entry.name.endsWith('.astro')) {
+              folderFiles++; payload += bytes;
+              if (folderFiles > 2000 || payload > maxExportBytes) throw new Error("Das Fahrzeug überschreitet 2000 Dateien oder 512 MiB.");
+              if (bytes > (entry.name.endsWith('/vehicle.json') ? 2 * 1024 ** 2 : maxImageBytes)) throw new Error("vehicle.json darf höchstens 2 MiB und jedes Bild höchstens 50 MiB groß sein.");
+            }
+            for (const component of entry.name.split('/')) if (!validVehicleFilename(component)) throw new Error("Ein Dateiname wird auf Windows nicht unterstützt oder ist zu lang.");
             if (length > 65535 || !Number.isSafeInteger(bytes) || bytes >= 0xffffffff) throw new Error("ZIP-Größenlimit überschritten.");
             size += 76 + 2 * length + bytes;
-            if (size >= 0xffffffff || size > maxExportBytes) throw new Error("Der Export überschreitet 512 MiB. Bitte kleinere Bilder verwenden.");
+            if (size >= 0xffffffff) throw new Error("Der Export überschreitet 512 MiB. Bitte kleinere Bilder verwenden.");
           }
         }
         function validateRecord(record, legacy = false) {
@@ -454,7 +474,7 @@
             const checked = new Map();
             for (const file of files.values()) {
               if (file === json || file.name.endsWith(".astro")) continue;
-              if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(file.name) || file.name.includes("..")) throw new Error(`Nicht unterstützte Datei: ${file.name}`);
+              if (!validVehicleFilename(file.name) || !validVehicleFilename(file.name.replace(/\.[^.]+$/, '.webp')) || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(file.name)) throw new Error(`Nicht unterstützte Datei: ${file.name}`);
               const image = await checkImage(file);
               const extension = file.name.split(".").pop().toLowerCase().replace("jpeg", "jpg");
               if (extension !== extensionFor(image)) throw new Error(`Dateiendung passt nicht zum Bild: ${file.name}`);
@@ -528,6 +548,7 @@
           document.execCommand("insertHTML", false, clean);
           const block = state.blocks.find((item) => item.id === editor.dataset.editor);
           if (block) block[editor.dataset.language === "en" ? "htmlEn" : "html"] = sanitizeHtml(editor.innerHTML);
+          notifyChange(true);
           if (report.removed) setStatus([], "Nicht unterstützte Formatierungen, eingebettete Inhalte oder unsichere Links wurden aus dem eingefügten Text entfernt.");
         });
         $("#block-list").addEventListener("drop", (event) => {
@@ -554,6 +575,7 @@
           if (button.dataset.entryMove !== undefined) { moveItem(block.imageIds, index, index - 1); moveItem(block.imageMeta, index, index - 1); }
           else { block.imageIds.splice(index, 1); block.imageMeta.splice(index, 1); }
           renderBlocks();
+          notifyChange();
           $("[data-block-id='" + block.id + "'] button:not(:disabled)")?.focus();
         });
         // Restore keyboard focus after the existing reordering handlers rebuild lists.
@@ -625,14 +647,16 @@
         }
 
         function renumberImages() {
+          const stem = name => name.replace(/\.[^.]+$/, '').toLowerCase();
+          const used = new Set([cardName(), ...state.images.filter(image => image.originalName).map(image => image.originalName)].filter(Boolean).map(stem));
           state.images.forEach((image, index) => {
             if (!image.originalName) {
-              const used = new Set(state.images.filter((item) => item.originalName).map((item) => item.originalName));
               let number = index + 1;
               let name;
               do { name = `image-${String(number++).padStart(3, "0")}.${extensionFor(image.file)}`; }
-              while (used.has(name) || state.images.slice(0, index).some((item) => item.outputName === name) || name === cardName());
+              while (used.has(stem(name)));
               image.outputName = name;
+              used.add(stem(name));
             }
             if (!image.altTouched) image.alt = autoAlt(index);
             if (!image.altEnTouched) image.altEn = autoAltEn(index);
@@ -665,8 +689,9 @@
             const checked = await checkImage(file);
             if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
             state.cardFile = checked;
-            state.cardName = "";
+            state.cardName = state.cardName ? state.cardName.replace(/\.[^.]+$/, `.${extensionFor(checked)}`) : "";
             showCard();
+            renumberImages(); renderImages();
             if (!state.leadImageId) state.leadImageId = "__card__";
             renderLeadOptions();
             renderBlocks();
@@ -686,6 +711,7 @@
           if (state.busy) return;
           const files = [...fileList];
           await withBusy(async () => {
+            if (state.images.length + files.length + (state.cardFile ? 1 : 0) + 1 > 2000 || files.reduce((bytes, file) => bytes + file.size, (state.cardFile?.size || 0) + state.images.reduce((bytes, image) => bytes + image.file.size, 0)) > maxExportBytes) throw new Error("Die Bildsammlung überschreitet 2000 Dateien oder 512 MiB. Bitte weniger oder kleinere Bilder auswählen.");
             const errors = [];
             for (const source of files) {
               try {
@@ -928,6 +954,7 @@
         function sanitizeHtml(html, report = {}) {
           const source = document.createElement("template");
           source.innerHTML = html;
+          if (/<\s*(?:html|head|body)\b|<!doctype\b/i.test(html)) report.removed = true;
           const output = document.createElement("template");
           const tags = new Set(["p", "h2", "h3", "strong", "em", "br", "blockquote", "ul", "ol", "li", "a"]);
           const discard = new Set(["script", "style", "iframe", "object", "embed", "form", "input", "button", "textarea", "select", "template", "noscript", "link", "meta", "base"]);
@@ -962,6 +989,7 @@
             errors.push(
               "Der Slug darf nur Kleinbuchstaben, Ziffern und einzelne Bindestriche enthalten.",
             );
+          if (slug && (!validVehicleFilename(slug + '.astro') || ['index', 'seite'].includes(slug))) errors.push("Der Slug ist reserviert oder zu lang. Bitte einen kürzeren, anderen Dateinamen verwenden.");
           if (
             !fields.autoOrder.checked &&
             (fields.order.value.trim() === "" ||
@@ -1230,15 +1258,9 @@
           button.textContent = "ZIP wird erstellt…";
           setStatus([], "Dateien werden vorbereitet…");
           try {
-            if (fields.autoOrder.checked && !state.autoOrderValue) {
-              const timestamp = Date.now();
-              state.autoOrderValue = fields.prependOrder.checked
-                ? -timestamp
-                : timestamp;
-            }
+            const snapshot = editorSnapshot();
             updateSummary();
-            const record = createRecord();
-            validateRecord(record);
+            const record = snapshot.record;
             const base = `${record.category}`;
             const folder = `${base}/${record.slug}`;
             const entries = [
@@ -1248,14 +1270,14 @@
               },
               {
                 name: `${folder}/vehicle.json`,
-                data: `${JSON.stringify(record, null, "\t")}\n`,
+                data: snapshot.recordText,
               },
               {
-                name: `${folder}/${cardName()}`,
-                data: state.cardFile,
+                name: `${folder}/${snapshot.images[0].name}`,
+                data: snapshot.images[0].file,
               },
-              ...state.images.map((image) => ({
-                name: `${folder}/${image.outputName}`,
+              ...snapshot.images.slice(1).map((image) => ({
+                name: `${folder}/${image.name}`,
                 data: image.file,
               })),
             ];
@@ -1459,6 +1481,7 @@
               (item) => item.id === editor.dataset.editor,
             );
             if (block) block[editor.dataset.language === "en" ? "htmlEn" : "html"] = sanitizeHtml(editor.innerHTML);
+            notifyChange(true);
           }
         });
 
@@ -1505,6 +1528,7 @@
           document.execCommand(button.dataset.command, false, button.dataset.value || null);
           const block = state.blocks.find((item) => item.id === editor.dataset.editor);
           if (block) block[editor.dataset.language === "en" ? "htmlEn" : "html"] = sanitizeHtml(editor.innerHTML);
+          notifyChange(true);
         });
 
         $("#block-list").addEventListener("click", (event) => {
@@ -1591,7 +1615,11 @@
           if (fields.autoOrder.checked && !state.autoOrderValue) state.autoOrderValue = Date.now() * (fields.prependOrder.checked ? -1 : 1);
           const record = createRecord();
           validateRecord(record);
-          return { record, images: [{ name: cardName(), file: state.cardFile }, ...state.images.map(image => ({ name: image.outputName, file: image.file }))] };
+          const recordText = `${JSON.stringify(record, null, "\t")}\n`;
+          const images = [{ name: cardName(), file: state.cardFile }, ...state.images.map(image => ({ name: image.outputName, file: image.file }))];
+          const jsonSize = new TextEncoder().encode(recordText).length;
+          if (jsonSize > 2 * 1024 ** 2 || images.length + 1 > 2000 || images.some(image => image.file.size > 50 * 1024 ** 2) || jsonSize + images.reduce((sum, image) => sum + image.file.size, 0) > 512 * 1024 ** 2) throw new Error("Das Fahrzeug überschreitet die Dateigrenzen: 2 MiB JSON, 50 MiB je Bild, 2000 Dateien oder 512 MiB insgesamt. Bitte Inhalte reduzieren.");
+          return { record, recordText, images };
         }
         workflow = window.VehicleProjectUI({ state, fields, showStep, showEditor, resetEditor, importVehicle, validateRecord, checkImage, createAstro, editorSnapshot, updateSummary, validate, setBusy });
         showStep("project");

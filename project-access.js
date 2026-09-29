@@ -5,9 +5,11 @@
   const prefix = "src/pages/projekte/";
   const metadata = ["src/config/vehicle-redirects.json", "src/config/modificationDates.js", "public/sitemap.xml", "public/llms.txt", "public/robots.txt"];
   const route = /^(aktuelle-projekte|vergangene-projekte|fahrzeugangebote)\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const safeName = name => typeof name === 'string' && name.length <= 255 && /^[\x20-\x7e]+$/.test(name) && !/[<>:"/\\|?*]/.test(name) && !/[. ]$/.test(name) && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name);
+  let progress = () => {};
   function parts(path) {
     const result = path.split("/");
-    if (result.some(part => !part || part === "." || part === ".." || /[\\\x00-\x1f]/.test(part))) throw new Error("Ungültiger Dateipfad.");
+    if (result.some(part => !safeName(part) || part === "." || part === "..")) throw new Error("Ungültiger oder auf Windows nicht unterstützter Dateipfad.");
     return result;
   }
   async function directory(root, path, create = false) {
@@ -48,16 +50,26 @@
   async function entries(handle) { const result = []; for await (const pair of handle.entries()) result.push(pair); return result.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0); }
   async function snapshot(root) {
     const result = {};
-    async function walk(handle, path) {
+    let checked = 0;
+    async function walk(handle, path, depth = 0) {
       result[path + "/"] = "directory";
+      let count = 0, total = 0;
       for (const [name, child] of await entries(handle)) {
         if (name === ".DS_Store") continue;
+        if (!safeName(name)) throw new Error(`${path}/${name}: Dateiname wird auf Windows nicht unterstützt.`);
         const childPath = `${path}/${name}`;
-        if (child.kind === "directory") await walk(child, childPath);
+        if (child.kind === "directory") {
+          if (depth >= 2 || (depth === 0 && !categories.includes(name))) throw new Error(`${childPath}: Unerwarteter Unterordner. Bitte die Fahrzeugstruktur prüfen.`);
+          await walk(child, childPath, depth + 1);
+        }
         else {
           const file = await child.getFile();
-          if (file.size > 50 * 1024 ** 2) throw new Error(`${childPath}: Datei überschreitet 50 MiB.`);
+          const textFile = name.endsWith('.astro') || name === 'vehicle.json';
+          if ((!textFile && !/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(name)) || (depth < 2 && !name.endsWith('.astro')) || name.includes('..')) throw new Error(`${childPath}: Nicht unterstützte Datei.`);
+          if (file.size > (textFile ? 2 : 50) * 1024 ** 2) throw new Error(`${childPath}: Datei überschreitet ${textFile ? 2 : 50} MiB.`);
+          if (depth === 2 && !path.endsWith('/seite') && (++count > 2000 || (total += file.size) > 512 * 1024 ** 2)) throw new Error(`${path}: Fahrzeug überschreitet 2000 Dateien oder 512 MiB.`);
           result[childPath] = await hash(file);
+          if (++checked % 50 === 0) progress(`Projekt wird geprüft … ${checked} Dateien gelesen.`);
         }
       }
     }
@@ -113,5 +125,5 @@
     if (!same(before, await snapshot(root))) throw new Error("Das Projekt wurde während des Einlesens geändert. Bitte erneut auswählen.");
     return { root, vehicles, baseline: before };
   }
-  window.VehicleProjectAccess = { categories, prefix, metadata, route, directory, fileHandle, read, text, exists, hasDirectory, write, remove, hash, entries, snapshot, same, discover, vehicleFiles, inspect };
+  window.VehicleProjectAccess = { categories, prefix, metadata, route, safeName, directory, fileHandle, read, text, exists, hasDirectory, write, remove, hash, entries, snapshot, same, discover, vehicleFiles, inspect, setProgress: callback => { progress = callback; } };
 })();

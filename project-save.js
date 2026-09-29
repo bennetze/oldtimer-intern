@@ -4,6 +4,8 @@
   const A = window.VehicleProjectAccess;
   const origin = "https://www.oldtimermanufaktur.de";
   const lock = ".cache/vehicle-import.lock";
+  const reviewed = new WeakMap();
+  const coordinate = work => typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request('oldtimer-vehicle-save', work) : work();
   const json = value => JSON.stringify(value, null, "\t") + "\n";
   const fail = message => { throw new Error(message); };
   const validDate = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + "T12:00:00Z")) && new Date(value + "T12:00:00Z").toISOString().slice(0, 10) === value;
@@ -41,7 +43,8 @@
     }
     const dates = object();
     // Reject changed date-selection logic rather than silently generating the wrong sitemap.
-    const tail = source.slice(position).replace(/\s+/g, "");
+    const tokens = code => JSON.stringify(code.match(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\/(?:\\.|[^/\\\r\n])+\/[a-z]*|[A-Za-z_$][\w$]*|\d+|[^\s]/g));
+    const tail = tokens(source.slice(position));
     const expected = `;
 export function pageModified(path, contentDates = []) {
  path = path.replace(/^\\/en(?=\\/)/, '');
@@ -50,8 +53,8 @@ export function pageModified(path, contentDates = []) {
  : path.startsWith('/projekte/') ? modificationDates.archive : undefined;
  return [modificationDates.shared, modificationDates.pages[path], template, ...contentDates]
  .filter(Boolean).sort().at(-1);
-}`.replace(/\s+/g, "");
-    if (tail !== expected) fail("Die Datumslogik des Website-Projekts hat sich geändert. Bitte den Fahrzeugeditor aktualisieren.");
+}`;
+    if (tail !== tokens(expected)) fail("Die Datumslogik des Website-Projekts hat sich geändert. Bitte den Fahrzeugeditor aktualisieren.");
     if (Object.keys(dates).sort().join(",") !== "archive,pages,shared,vehicle" || !dates.pages || typeof dates.pages !== "object") fail("Unvollständige Datumskonfiguration.");
     for (const value of [dates.shared, dates.archive, dates.vehicle, ...Object.values(dates.pages)]) if (!validDate(value)) fail("Ungültiges Datum in modificationDates.");
     return dates;
@@ -89,22 +92,23 @@ export function pageModified(path, contentDates = []) {
     if (from && (!A.route.test(from) || from.split('/')[1] !== record.slug || !project.vehicles.some(item => item.key === from))) fail("Das ursprüngliche Fahrzeug ist nicht mehr vorhanden oder der Slug wurde verändert.");
     if (project.vehicles.some(item => item.key === key && item.key !== from) || (key !== from && Object.keys(before).some(path => path === `${A.prefix}${key}` || path === `${A.prefix}${key}.astro` || path.startsWith(`${A.prefix}${key}/`)))) fail("Das Zielfahrzeug existiert bereits. Bitte über die Fahrzeugliste öffnen.");
     if (project.vehicles.some(item => item.key !== from && item.record.category === record.category && item.record.order === record.order)) fail("Der Sortierwert ist in dieser Kategorie bereits vergeben. Bitte einen anderen Wert wählen.");
-    const files = new Map(), names = new Set(), stems = new Set(); let total = 0;
+    const recordText = json(record);
+    const recordBytes = new TextEncoder().encode(recordText).length;
+    if (recordBytes > 2 * 1024 ** 2) fail("vehicle.json überschreitet 2 MiB.");
+    const files = new Map(), names = new Set(), stems = new Set();
+    if (images.reduce((total, image) => total + image.file.size, recordBytes) > 512 * 1024 ** 2) fail("Das Fahrzeug überschreitet 512 MiB.");
     if (images.length + 1 > 2000) fail("Höchstens 2000 Dateien pro Fahrzeug sind erlaubt.");
     for (const { name, file } of images) {
-      if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(name) || name.includes('..') || names.has(name.toLowerCase())) fail(`Ungültiger oder doppelter Bildname: ${name}`);
+      if (!A.safeName(name) || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(name) || name.includes('..') || names.has(name.toLowerCase())) fail(`Ungültiger oder doppelter Bildname: ${name}`);
       const stem = name.replace(/\.[^.]+$/, '').toLowerCase(); if (stems.has(stem)) fail(`Bildnamen kollidieren nach WebP-Konvertierung: ${name}`);
       names.add(name.toLowerCase()); stems.add(stem);
       const image = await api.checkImage(file);
       const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', avif: 'image/avif' }[name.split('.').at(-1).toLowerCase()];
       if (image.type !== mime) fail(`Bildinhalt und Dateiendung stimmen nicht überein: ${name}`);
-      const bytes = new Uint8Array(await file.arrayBuffer()); total += bytes.length;
-      if (total > 512 * 1024 ** 2) fail("Das Fahrzeug überschreitet 512 MiB.");
+      const bytes = new Uint8Array(await file.arrayBuffer());
       files.set(`${A.prefix}${key}/${name}`, bytes);
     }
     for (const ref of [record.cardImage, record.leadImage, ...record.blocks.flatMap(block => block.type === 'gallery' ? block.images.map(image => image.src) : [])]) if (!files.has(`${A.prefix}${key}/${ref.slice(2)}`)) fail(`Fehlendes Bild: ${ref}`);
-    const recordText = json(record);
-    if (new TextEncoder().encode(recordText).length > 2 * 1024 ** 2) fail("vehicle.json überschreitet 2 MiB.");
     const changes = new Map();
     if (from) for (const path of Object.keys(before)) if (path === `${A.prefix}${from}.astro` || (path.startsWith(`${A.prefix}${from}/`) && !path.endsWith('/'))) changes.set(path, null);
     changes.set(`${A.prefix}${key}.astro`, api.createAstro(record.category, record.slug));
@@ -133,28 +137,49 @@ export function pageModified(path, contentDates = []) {
       summary.push({ path, before: before[path] || null, after, action: data === null ? 'Entfernen' : before[path] ? 'Ändern' : 'Hinzufügen' });
     }
     if (!A.same(before, await A.snapshot(project.root))) fail("Das Projekt wurde während der Prüfung geändert. Bitte neu laden.");
-    return { root: project.root, before, record, from, key, changes, summary };
+    const review = { root: project.root, before, record, from, key, changes, summary };
+    reviewed.set(review, { root: review.root, stamp: reviewStamp(review) });
+    return review;
   }
+  function reviewStamp(review) { return JSON.stringify([review.before, review.record, review.from, review.key, review.summary]); }
   async function currentHash(root, path) { return await A.exists(root, path) ? A.hash(await A.read(root, path)) : null; }
   function safeEntry(path, journal) {
+    if (typeof path !== 'string') return false;
     if (['public/sitemap.xml', 'public/llms.txt', 'src/config/vehicle-redirects.json'].includes(path)) return true;
-    return [journal.key, journal.from].filter(Boolean).some(key => path === `${A.prefix}${key}.astro` || (path.startsWith(`${A.prefix}${key}/`) && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(path.slice(`${A.prefix}${key}/`.length)) && !path.includes('..')));
+    return [journal.key, journal.from].filter(Boolean).some(key => path === `${A.prefix}${key}.astro` || (path.startsWith(`${A.prefix}${key}/`) && A.safeName(path.slice(`${A.prefix}${key}/`.length)) && /^(?:vehicle\.json|[A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png|webp|avif))$/i.test(path.slice(`${A.prefix}${key}/`.length)) && !path.includes('..')));
   }
   async function readJournal(root) {
     if (!await A.hasDirectory(root, lock)) return null;
     if (!await A.exists(root, `${lock}/browser.json`)) fail("Das Projekt ist durch den Website-Importer oder einen unvollständigen Sperrvorgang gesperrt. Bitte die Sperre gemäß VEHICLE-CONTENT-GUIDE.md prüfen; der Editor entfernt sie nicht automatisch.");
     const owner = JSON.parse(await A.text(root, `${lock}/browser.json`));
-    if (!/^\.cache\/vehicle-browser-backup-[a-f0-9-]+$/.test(owner.backup) || typeof owner.id !== 'string') fail("Ungültige Wiederherstellungsinformation. Sperre beibehalten.");
+    const object = value => value && typeof value === 'object' && !Array.isArray(value);
+    const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
+    if (!object(owner) || !uuid(owner.id) || owner.backup !== `.cache/vehicle-browser-backup-${owner.id}`) fail("Ungültige Wiederherstellungsinformation. Sperre beibehalten.");
     const journal = JSON.parse(await A.text(root, `${owner.backup}/journal.json`));
-    if (journal.id !== owner.id || journal.backup !== owner.backup || !A.route.test(journal.key) || (journal.from !== null && !A.route.test(journal.from)) || !Array.isArray(journal.entries) || journal.entries.length > 2005 || !['staged', 'writing', 'completed', 'restored'].includes(journal.phase)) fail("Beschädigtes Wiederherstellungsjournal. Sperre beibehalten.");
+    const validKey = key => typeof key === 'string' && A.route.test(key) && A.safeName(key.split('/')[1] + '.astro') && !['index', 'seite'].includes(key.split('/')[1]);
+    if (!object(journal) || journal.id !== owner.id || journal.backup !== owner.backup || !validKey(journal.key) || (journal.from !== null && (!validKey(journal.from) || journal.from.split('/')[1] !== journal.key.split('/')[1])) || typeof journal.targetExisted !== 'boolean' || (journal.targetExisted !== (journal.from === journal.key)) || !Array.isArray(journal.entries) || !journal.entries.length || journal.entries.length > 4005 || !['staged', 'writing', 'completed', 'restored'].includes(journal.phase)) fail("Beschädigtes Wiederherstellungsjournal. Sperre beibehalten.");
     const paths = new Set();
     for (const entry of journal.entries) {
-      if (!safeEntry(entry.path, journal) || paths.has(entry.path) || ![entry.before, entry.after].every(value => value === null || /^[a-f0-9]{64}$/.test(value))) fail("Unsicherer Dateipfad oder Prüfsumme im Wiederherstellungsjournal.");
+      if (!object(entry) || !safeEntry(entry.path, journal) || paths.has(entry.path) || ![entry.before, entry.after].every(value => value === null || (typeof value === 'string' && /^[a-f0-9]{64}$/.test(value))) || entry.before === entry.after) fail("Unsicherer Dateipfad oder Prüfsumme im Wiederherstellungsjournal.");
       paths.add(entry.path);
     }
     return journal;
   }
-  async function release(root) { await A.remove(root, `${lock}/browser.json`); await A.remove(root, lock); }
+  async function assertOwner(root, journal) {
+    const current = await readJournal(root);
+    if (!current || JSON.stringify(current) !== JSON.stringify(journal)) fail("Die Projektsperre oder das Journal wurde geändert. Sicherung beibehalten.");
+    if ((await A.entries(await A.directory(root, lock))).some(([name]) => name !== 'browser.json')) fail("Die Projektsperre enthält fremde Dateien. Sperre beibehalten.");
+  }
+  async function release(root, journal) {
+    await assertOwner(root, journal);
+    await A.remove(root, `${lock}/browser.json`);
+    try { await A.remove(root, lock); }
+    catch (error) {
+      // Retain a discoverable completed/restored journal if empty-directory cleanup fails.
+      if (await A.hasDirectory(root, lock) && !(await A.entries(await A.directory(root, lock))).length) await A.write(root, `${lock}/browser.json`, json({ id: journal.id, backup: journal.backup }));
+      throw error;
+    }
+  }
   async function cleanupDirectories(root, journal, restore) {
     const key = restore ? journal.key : journal.from;
     if (!key || (!restore && key === journal.key) || (restore && journal.targetExisted)) return;
@@ -166,31 +191,45 @@ export function pageModified(path, contentDates = []) {
   }
   async function restore(root) {
     const journal = await readJournal(root); if (!journal) return;
-    // Check every file and backup before touching anything, including after a crash.
-    for (const entry of journal.entries) {
+    await assertOwner(root, journal);
+    if (journal.phase === 'completed' || journal.phase === 'restored') { await release(root, journal); return journal; }
+    const check = async entry => {
       const now = await currentHash(root, entry.path);
       if (now !== entry.before && now !== entry.after && !(journal.phase === 'writing' && entry.before === null && now === await A.hash(''))) fail(`Wiederherstellung gestoppt: ${entry.path} wurde zwischenzeitlich geändert. Sicherung: ${journal.backup}`);
-      if (entry.before && await currentHash(root, `${journal.backup}/before/${entry.path}`) !== entry.before) fail(`Sicherung beschädigt: ${entry.path}. Sicherung: ${journal.backup}`);
-    }
-    if (journal.phase !== 'completed') {
+      const original = entry.before ? await A.read(root, `${journal.backup}/before/${entry.path}`) : null;
+      if (original && await A.hash(original) !== entry.before) fail(`Sicherung beschädigt: ${entry.path}. Sicherung: ${journal.backup}`);
+      return { original, now };
+    };
+    // Check every file and backup before touching anything, including after a crash.
+    for (const entry of journal.entries) await check(entry);
+    {
       for (const entry of [...journal.entries].reverse()) {
-        if (entry.before) await A.write(root, entry.path, await A.read(root, `${journal.backup}/before/${entry.path}`));
+        const { original, now } = await check(entry);
+        await assertOwner(root, journal);
+        if (await currentHash(root, entry.path) !== now) fail(`Wiederherstellung gestoppt: ${entry.path} wurde zwischenzeitlich geändert.`);
+        if (now === entry.before) continue;
+        if (original) await A.write(root, entry.path, original);
         else await A.remove(root, entry.path);
         if (await currentHash(root, entry.path) !== entry.before) fail(`Wiederherstellung konnte nicht geprüft werden: ${entry.path}`);
       }
+      await assertOwner(root, journal);
       await cleanupDirectories(root, journal, true); journal.phase = 'restored';
       await A.write(root, `${journal.backup}/journal.json`, json(journal));
     }
-    await release(root);
+    await release(root, journal);
     return journal;
   }
   async function apply(review) {
+    if (!review || (reviewed.get(review)?.root !== review.root || reviewed.get(review)?.stamp !== reviewStamp(review)) || review.changes.size !== review.summary.length) fail("Die geprüften Änderungen wurden verändert. Bitte erneut prüfen.");
+    for (const entry of review.summary) {
+      if (!review.changes.has(entry.path) || (review.changes.get(entry.path) === null ? null : await A.hash(review.changes.get(entry.path))) !== entry.after) fail("Die geprüften Dateiinhalte wurden verändert. Bitte erneut prüfen.");
+    }
     const root = review.root;
     await checkUnlocked(root);
     if (!A.same(review.before, await A.snapshot(root))) fail("Das Projekt wurde nach der Prüfung geändert. Es wurde nichts gespeichert.");
-    if (!review.summary.length) return { backup: null };
+    if (!review.summary.length) return { backup: null, committed: true, cleanupPending: false };
     const id = crypto.randomUUID(), backup = `.cache/vehicle-browser-backup-${id}`;
-    const journal = { id, backup, key: review.key, from: review.from, targetExisted: !!review.before[`${A.prefix}${review.key}/`], phase: 'staged', entries: review.summary };
+    const journal = { id, backup, key: review.key, from: review.from, targetExisted: !!review.before[`${A.prefix}${review.key}/`], phase: 'staged', entries: structuredClone(review.summary) };
     // Backups and the journal must be durable before any source writes.
     for (const entry of journal.entries) if (entry.before) {
       await A.write(root, `${backup}/before/${entry.path}`, await A.read(root, entry.path));
@@ -199,6 +238,7 @@ export function pageModified(path, contentDates = []) {
     await A.write(root, `${backup}/journal.json`, json(journal));
     await checkUnlocked(root);
     await A.directory(root, lock, true);
+    if ((await A.entries(await A.directory(root, lock))).length) fail("Eine fremde Projektsperre wurde angelegt. Es wurde nichts gespeichert.");
     await A.write(root, `${lock}/browser.json`, json({ id, backup }));
     try {
       const owner = await readJournal(root);
@@ -206,24 +246,28 @@ export function pageModified(path, contentDates = []) {
       if (!A.same(review.before, await A.snapshot(root))) fail("Das Projekt wurde während der Sicherung geändert.");
       journal.phase = 'writing'; await A.write(root, `${backup}/journal.json`, json(journal));
       for (const entry of [...journal.entries].sort((a, b) => Number(a.after === null) - Number(b.after === null))) {
-        if ((await readJournal(root)).id !== id) fail("Die Projektsperre wurde geändert.");
+        await assertOwner(root, journal);
         if (await currentHash(root, entry.path) !== entry.before) fail(`Die Datei wurde außerhalb des Editors geändert: ${entry.path}`);
         const data = review.changes.get(entry.path);
         if (data === null) await A.remove(root, entry.path); else await A.write(root, entry.path, data);
         if (await currentHash(root, entry.path) !== entry.after) fail(`Die gespeicherte Datei konnte nicht geprüft werden: ${entry.path}`);
       }
+      await assertOwner(root, journal);
       await cleanupDirectories(root, journal, false);
+      await assertOwner(root, journal);
       journal.phase = 'completed'; await A.write(root, `${backup}/journal.json`, json(journal));
-      await release(root);
-      return { backup };
+      try { await release(root, journal); }
+      catch (error) { return { backup, committed: true, cleanupPending: true, message: error.message }; }
+      return { backup, committed: true, cleanupPending: false };
     } catch (error) {
       try {
         const owner = await readJournal(root);
         if (!owner || owner.id !== id) fail("Die Projektsperre gehört einem anderen Vorgang.");
+        if (owner.phase === 'completed') return { backup, committed: true, cleanupPending: true, message: error.message };
         await restore(root);
       } catch (recovery) { throw new Error(`${error.message}\nWiederherstellung nicht abgeschlossen: ${recovery.message}\nSicherung: ${backup}. Keine weiteren Änderungen speichern.`); }
       throw new Error(`${error.message}\nDie ursprünglichen Dateien wurden wiederhergestellt. Sicherung: ${backup}`);
     }
   }
-  window.VehicleProjectSave = { parseDates, sitemapEntries, renderSitemap, validateRedirects, prepare, apply, readJournal, restore, lock };
+  window.VehicleProjectSave = { parseDates, sitemapEntries, renderSitemap, validateRedirects, prepare, apply: review => coordinate(() => apply(review)), readJournal, restore: root => coordinate(() => restore(root)), lock };
 })();

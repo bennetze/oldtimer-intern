@@ -20,3 +20,9 @@ Wurden betroffene Dateien inzwischen extern verändert oder ist eine Sicherung b
 
 Browser können nicht alle Dateien als eine einzige atomare Änderung speichern. Der Editor verwendet Sicherungen, Prüfsummen und ein Wiederherstellungsjournal. Die Website-Buildprüfung bleibt die abschließende Prüfung vor einer Veröffentlichung.
 # oldtimer-intern
+
+## Geprüfte Dateigrenzen und Wiederherstellung
+
+ZIP-Export, direktes Speichern und der geprüfte Website-Importer verwenden dieselben Fahrzeuggrenzen: 2 MiB für `vehicle.json`, 50 MiB und 100 Megapixel je Bild, 2000 Dateien im Fahrzeugordner und 512 MiB Fahrzeugdaten insgesamt. Dateinamen müssen unter Windows verwendbar sein; neue Bilder reservieren ihre Namen auch ohne Beachtung der Großschreibung und nach WebP-Konvertierung.
+
+Wenn Dateien gespeichert wurden, aber das Entfernen der Projektsperre scheitert, meldet der Editor ausdrücklich den erfolgreichen Speichervorgang. Unter „Projektordner“ lässt sich der abgeschlossene Vorgang entsperren. Dabei werden keine älteren Inhalte zurückgeschrieben; alte Sicherungsdateien sind dafür nicht erforderlich. Bei einer unterbrochenen Schreibphase werden dagegen aktuelle Dateien, Sicherungen und die Sperrzugehörigkeit vor jeder Wiederherstellung erneut geprüft. Externe Änderungen bleiben bei einem Konflikt erhalten.
