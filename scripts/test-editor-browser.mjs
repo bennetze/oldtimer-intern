@@ -1,0 +1,21 @@
+// Reuse the website's fixtures without adding instrumentation to the deliverable.
+import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, join } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+const website = resolve(process.env.VEHICLE_WEBSITE_PATH || fileURLToPath(new URL('../../oldtimer/', import.meta.url)));
+const require = createRequire(join(website, 'package.json'));
+let harness = await readFile(join(website, 'scripts/test-vehicle-browser.mjs'), 'utf8');
+for (const [specifier, path] of [['sharp', require.resolve('sharp')], ['./lib/vehicle-tool.mjs',join(website,'scripts/lib/vehicle-tool.mjs')], ['../src/config/vehicleHtml.js',join(website,'src/config/vehicleHtml.js')]]) harness = harness.replace(`from '${specifier}'`, `from '${pathToFileURL(path).href}'`);
+harness = harness.replaceAll("new URL('../", `new URL('${pathToFileURL(website + '/').href}`);
+const additions = await readFile(new URL('../tests/vehicle-preview-cases.js', import.meta.url), 'utf8');
+const workflowAdditions = await readFile(new URL('../tests/vehicle-preview-workflow-cases.js', import.meta.url), 'utf8');
+harness = harness.replace('const tests = await readFile', 'let tests = await readFile').replace('const workflowTests = await readFile', 'let workflowTests = await readFile');
+harness = harness.replace('let source = await readFile', `tests = tests.replace("  const response = await fetch('/result'", ${JSON.stringify(additions)} + "  const response = await fetch('/result'");\nlet source = await readFile`);
+harness = harness.replace('const dateSource = await readFile', `workflowTests = workflowTests.replace("  await fetch('/result'", ${JSON.stringify(workflowAdditions)} + "  await fetch('/result'");\nconst dateSource = await readFile`);
+const temporary = await mkdtemp(join(tmpdir(),'editor-preview-harness-'));
+const entry = join(temporary,'harness.mjs');
+await writeFile(entry,harness);
+process.env.VEHICLE_TOOL_PATH ||= fileURLToPath(new URL('../index.html',import.meta.url));
+await import(pathToFileURL(entry).href);

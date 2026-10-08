@@ -189,8 +189,8 @@
           pendingChange = true;
           queueMicrotask(() => { pendingChange = false; refreshGalleryDefaults(); updateSummary(); });
         }
-        document.addEventListener("input", () => notifyChange(true));
-        document.addEventListener("change", () => notifyChange(true));
+        document.addEventListener("input", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
+        document.addEventListener("change", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
         function autoAltEn(index) {
           const title = fields.titleEn.value.trim();
           return title ? `${title} – photograph ${index + 1} in the vehicle record` : "";
@@ -570,7 +570,11 @@
           const button = event.target.closest("button[data-entry-block]");
           if (!button) return;
           const block = state.blocks.find((item) => item.id === button.dataset.entryBlock);
-          const index = Number(button.dataset.entryMove ?? button.dataset.entryRemove);
+          const index = Number(button.dataset.entryMove ?? button.dataset.entryRemove ?? button.dataset.entrySplit);
+          if (button.dataset.entrySplit !== undefined) {
+            splitGallery(block.id, index + 1);
+            return;
+          }
           block.imageMeta ||= block.imageIds.map(() => null);
           if (button.dataset.entryMove !== undefined) { moveItem(block.imageIds, index, index - 1); moveItem(block.imageMeta, index, index - 1); }
           else { block.imageIds.splice(index, 1); block.imageMeta.splice(index, 1); }
@@ -891,10 +895,85 @@
                 <label>Alternativtext des Galeriebilds<input data-entry-alt="${index}" data-entry-block="${block.id}" value="${escapeHtml(meta.alt)}" /></label>
                 <label>Galerie-Bildunterschrift<input data-entry-caption="${index}" data-entry-block="${block.id}" value="${escapeHtml(meta.caption || "")}" /></label>
                 <button type="button" class="btn btn--small" data-entry-move="${index}" data-entry-block="${block.id}" ${index === 0 ? "disabled" : ""}>Nach oben</button>
+                ${index < block.imageIds.length - 1 ? `<button type="button" class="btn btn--small" data-entry-split="${index}" data-entry-block="${block.id}">Galerie nach diesem Bild teilen</button>` : ""}
                 <button type="button" class="btn btn--small" data-entry-remove="${index}" data-entry-block="${block.id}">Aus Galerie entfernen</button>
               </li>`;
             }).join("")}</ol>`;
         }
+
+        function splitGallery(blockId, position) {
+          const index = state.blocks.findIndex((block) => block.id === blockId);
+          const block = state.blocks[index];
+          if (!block || block.type !== "gallery" || !Number.isInteger(position) || position < 1 || position >= block.imageIds.length) return;
+          const metadata = block.imageIds.map((_, index) => block.imageMeta?.[index] || null);
+          const next = { ...block, id: id(), imageIds: block.imageIds.slice(position), imageMeta: metadata.slice(position) };
+          block.imageIds = block.imageIds.slice(0, position);
+          block.imageMeta = metadata.slice(0, position);
+          state.blocks.splice(index + 1, 0, next);
+          renderBlocks();
+          notifyChange();
+          setStatus([], "Galerie geteilt. Einen Text- oder Kontaktblock zwischen die beiden Galerien verschieben, um die Bildergruppe zu unterbrechen.");
+          $(`[data-block-id='${next.id}'] button:not(:disabled)`)?.focus();
+        }
+
+        function previewHtml(html) {
+          const template = document.createElement("template");
+          template.innerHTML = sanitizeHtml(html || "");
+          // Keep this offline even when authored content links to the public website.
+          for (const link of template.content.querySelectorAll("a")) link.removeAttribute("href");
+          return template.innerHTML;
+        }
+
+        function renderPagePreview() {
+          const english = $("#preview-language").value === "en";
+          const pool = poolImages();
+          const text = (value) => escapeHtml(value || "");
+          const photo = (image, meta, lead = false) => `<figure${lead ? ' class="lead"' : ""}><img src="${text(image.url)}" alt="${text(english ? meta.altEn : meta.alt)}" />${!lead && (english ? meta.captionEn : meta.caption) ? `<figcaption>${text(english ? meta.captionEn : meta.caption)}</figcaption>` : ""}</figure>`;
+          const lead = pool.find((image) => image.id === state.leadImageId);
+          const leadInStory = state.blocks.some((block) => block.type === "gallery" && block.imageIds.includes(state.leadImageId));
+          const runs = [];
+          for (const block of state.blocks) {
+            if (block.type === "gallery") {
+              const previous = runs.at(-1);
+              const images = block.imageIds.flatMap((imageId, index) => {
+                const image = pool.find((item) => item.id === imageId);
+                return image ? [photo(image, block.imageMeta?.[index] || image)] : [];
+              });
+              if (previous?.type === "gallery") previous.images.push(...images);
+              else runs.push({ type: "gallery", images });
+            } else runs.push({ type: block.type, html: previewHtml(english ? block.htmlEn : block.html) });
+          }
+          const body = runs.map((run) => run.type === "gallery"
+            ? `<div class="photos${run.images.length > 1 ? " multiple" : ""}">${run.images.join("")}</div>`
+            : `<${run.type === "contact" ? "aside" : "section"} class="${run.type}">${run.html}${run.type === "contact" ? `<div class="actions"><span>03 69 66 / 83 7 83</span><span>${english ? "Send email" : "E-Mail schreiben"}</span></div>` : ""}</${run.type === "contact" ? "aside" : "section"}>`).join("");
+          $("#page-preview-frame").srcdoc = `<!doctype html><html lang="${english ? "en" : "de"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>
+            *{box-sizing:border-box}body{margin:0;background:#eee;color:#111;font-family:Georgia,serif;overflow-wrap:anywhere}header{text-align:center;padding:40px 20px}header p{font-size:12px;letter-spacing:.15em}h1{font-size:clamp(32px,3.4vw,56px);font-weight:400;text-transform:uppercase;line-height:1.05;margin:20px auto;max-width:28ch}article{max-width:1120px;margin:auto;padding:16px clamp(20px,4vw,48px) 60px}article>*+*{margin-top:20px}.copy{max-width:736px;margin-inline:auto;font-size:clamp(20px,1.6vw,24px);font-weight:600;line-height:1.6}.copy p,.copy blockquote,.contact p{margin:0}.copy h2,.copy h3{text-align:center;text-transform:uppercase;font-weight:400;line-height:1.05}.photos{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:420px;margin-inline:auto;align-items:start}figure{margin:0;min-width:0}img{display:block;width:100%;height:auto;max-height:416px;object-fit:contain}figcaption{padding-top:12px;font-size:15px;font-weight:600;line-height:1.5}.lead{max-width:420px;margin:auto}.contact{max-width:928px;margin-inline:auto;border-block:1px solid #999;padding:24px 0;font-size:24px;line-height:1.65;text-align:center;font-weight:600}.actions{display:flex;justify-content:center;gap:16px;margin-top:32px;font:12px sans-serif}.actions span{border:1px solid;padding:14px 18px}a{color:inherit;text-decoration:underline}@media(min-width:760px){.multiple{max-width:856px;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(min-width:1100px){.multiple{max-width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}.multiple:has(> :nth-child(2):last-child){max-width:856px;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:759px){.actions{flex-direction:column}.contact{font-size:20px}}
+          </style></head><body><header><p>${text(english ? { "aktuelle-projekte": "Current projects", "vergangene-projekte": "Completed projects", "fahrzeugangebote": "Cars for sale" }[fields.category.value] : fields.category.selectedOptions[0]?.textContent)}</p><h1>${text(english ? fields.titleEn.value : fields.title.value) || "Titel fehlt"}</h1></header>${lead && !leadInStory ? photo(lead, { alt: fields.leadAlt.value, altEn: fields.leadAltEn.value }, true) : ""}<article>${body || '<p>Noch keine Inhaltsblöcke vorhanden.</p>'}</article></body></html>`;
+          sizePagePreview();
+        }
+
+        function sizePagePreview() {
+          const stage = $("#preview-stage");
+          const frame = $("#page-preview-frame");
+          const width = Number($("#preview-width").value);
+          const scale = Math.min(1, stage.clientWidth / width);
+          frame.style.width = `${width}px`;
+          frame.style.transform = `scale(${scale})`;
+          stage.style.height = `${720 * scale}px`;
+        }
+
+        $("#open-page-preview").addEventListener("click", () => {
+          $("#page-preview-dialog").showModal();
+          renderPagePreview();
+          $("#close-page-preview").focus();
+        });
+        $("#close-page-preview").addEventListener("click", () => $("#page-preview-dialog").close());
+        $("#page-preview-dialog").addEventListener("close", () => {
+          $("#page-preview-frame").removeAttribute("srcdoc");
+          $("#open-page-preview").focus();
+        });
+        for (const selector of ["#preview-language", "#preview-width"]) $(selector).addEventListener("change", renderPagePreview);
+        new ResizeObserver(sizePagePreview).observe($("#preview-stage"));
 
         function updateSummary() {
           updateCompletion();

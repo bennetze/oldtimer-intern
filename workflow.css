@@ -56,3 +56,12 @@ body { padding-top: 0; }
 .step-nav__status { grid-column: 2; grid-row: 2; max-width: none; text-align: left; }
 .step-nav li { border: 0; }
 .step-nav ol { border-left: 0; }
+
+#page-preview-dialog { width: min(1240px, 96vw); max-width: 96vw; max-height: 94vh; padding: 20px; border: 1px solid #999; background: #fafafa; overflow: auto; }
+#page-preview-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.preview-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.preview-toolbar h2 { flex: 1 1 240px; margin: 0; font-size: 20px; }
+.preview-toolbar label { display: grid; gap: 5px; font-size: 12px; }
+#preview-stage { width: 100%; overflow: hidden; background: #eee; margin-top: 16px; }
+#page-preview-frame { display: block; height: 720px; border: 0; transform-origin: top left; margin-inline: auto; }
+@media (max-width: 550px) { #page-preview-dialog { padding: 12px; } .preview-toolbar { gap: 10px; } }

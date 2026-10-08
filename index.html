@@ -260,9 +260,10 @@
               <label class="required" for="lead-image"
                 >Hauptbild der Detailseite</label
               >
-              <select id="lead-image" disabled>
+              <select id="lead-image" aria-describedby="lead-help" disabled>
                 <option value="">Zuerst ein Bild importieren</option>
               </select>
+              <p class="hint" id="lead-help">Das Hauptbild liefert auch das Vorschaubild für Suchmaschinen und geteilte Links. Ist es bereits in einer Galerie enthalten, erscheint es nur dort. Andernfalls steht es vor dem ersten Inhaltsblock.</p>
             </div>
             <div class="field" style="margin-top: 0.75rem">
               <label class="required" for="lead-alt"
@@ -281,6 +282,7 @@
             <h2 id="content-title">Inhalte</h2>
           </div>
           <div class="panel__body">
+            <p class="hint">Die Reihenfolge hier ist die Lesereihenfolge auf der Website – in beiden Sprachen. Zugehörigen Text direkt vor oder nach die Galerie setzen; eine Bildunterschrift am jeweiligen Galeriebild bearbeiten. Aufeinanderfolgende Galerien bilden eine gemeinsame Bildergruppe. Ein Text- oder Kontaktblock beendet diese Gruppe.</p>
             <div class="block-controls">
               <button class="btn" type="button" data-add-block="copy">
                 + Textblock
@@ -304,6 +306,8 @@
           <div class="panel__head"><h2>Prüfen &amp; speichern</h2></div>
           <div class="panel__body">
             <div class="review-state" id="review-state" aria-live="polite"></div>
+            <button class="btn btn--secondary" id="open-page-preview" type="button">Fahrzeugseite ansehen</button>
+            <p class="hint">Vorschau von Lesereihenfolge, Bildern und Bildunterschriften. Schrift und Seitenrahmen sind vereinfacht; die Vorschau ersetzt nicht die Prüfung vor dem Speichern.</p>
             <dl class="summary">
               <div>
                 <dt>Kategorie</dt>
@@ -359,6 +363,17 @@ aktuelle-projekte/
         <button class="btn btn--primary" type="button" id="step-next">Weiter</button>
       </div>
     </main>
+
+    <dialog id="page-preview-dialog" aria-labelledby="page-preview-title">
+      <div class="preview-toolbar">
+        <h2 id="page-preview-title">Vorschau der Fahrzeugseite</h2>
+        <label>Sprache <select id="preview-language"><option value="de">Deutsch</option><option value="en">Englisch</option></select></label>
+        <label>Ansicht <select id="preview-width"><option value="1200">Desktop · 1200 px</option><option value="800">Tablet · 800 px</option><option value="390">Mobil · 390 px</option></select></label>
+        <button class="btn btn--small" id="close-page-preview" type="button">Schließen</button>
+      </div>
+      <p class="hint">Die Ansicht wird bei Bedarf verkleinert. Innerhalb der Vorschau nach unten scrollen. Links sind hier ohne Funktion.</p>
+      <div id="preview-stage"><iframe id="page-preview-frame" title="Fahrzeugseite" sandbox="allow-same-origin"></iframe></div>
+    </dialog>
 
     <script src="project-access.js"></script>
     <script src="project-save.js"></script>

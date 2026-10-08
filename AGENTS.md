@@ -240,7 +240,8 @@ Blocks are stored and rendered in the exact order shown in the authoring UI.
 { "type": "copy", "html": "<p>Deutsch …</p>", "htmlEn": "<p>English …</p>" }
 ```
 
-Normal editorial content. The website renders it as centered story copy and supports
+Normal editorial content. The website renders it as left-aligned story copy in the
+vertical reading sequence and supports
 paragraphs, headings, emphasis, links, and lists produced by the editor.
 
 ### Contact block
@@ -468,3 +469,22 @@ are finalized without restoring older content.
 
 Implementation tests use disposable copies or browser-private fixtures only. Do
 not modify real vehicle content, publish, or build automatically from the editor.
+
+## Vehicle reading sequence and preview
+
+The website stacks copy, contact and gallery blocks in their saved order. Adjacent
+gallery blocks share an uninterrupted photo run; copy and contact end that run.
+Photos are uncropped, up to 420px wide: one column below 760px, up to two from
+760px and up to three from 1100px (two photos remain two columns). Each occurrence
+keeps its own bilingual alternatives and captions under its photograph. Place
+related copy directly before or after its gallery; edit photo-specific captions
+on the gallery occurrence. No grouping configuration or historical source snapshot
+is required.
+
+A lead image already used in the story supplies representative metadata without
+an additional opening photograph. A lead outside the story appears before the
+first block. The review preview uses local object URLs and sanitized content in a
+sandboxed, offline frame; desktop/tablet/mobile sizes and both languages can be
+reviewed without changing the draft. It simplifies website fonts and chrome.
+Gallery splitting retains image order and occurrence metadata, invalidates any
+prepared save and focuses the new gallery. It does not itself insert a text block.
