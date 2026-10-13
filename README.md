@@ -1,31 +1,28 @@
 # Fahrzeugeditor
 
-1. Alle Dateien in diesem Ordner zusammenlassen. `index.html` in einer aktuellen Desktop-Version von **Chrome oder Edge** öffnen (macOS oder Windows).
-2. **Projektordner auswählen**: den vollständigen Website-Ordner mit `src`, `public` und der Astro-Konfiguration auswählen und den Ordnerzugriff erlauben.
-3. Ein Fahrzeug aus der Liste öffnen oder **Neues Fahrzeug** wählen. Die Liste zeigt das gepflegte Änderungsdatum, nicht das Änderungsdatum der Datei. Über **Kategorie** lässt sie sich filtern.
-4. Deutsche und englische Texte, Bilder und Inhalte bearbeiten. Bestehende Fahrzeuge behalten Datum und Slug; **Heutiges Datum verwenden** ändert das Datum ausdrücklich.
-5. Unter **Prüfen & speichern** zuerst **Änderungen prüfen** wählen. Projekt, Original-/Zielroute und betroffene Dateien kontrollieren. Mit **Im Projekt speichern** genau diese Änderungen übernehmen.
+See the [step-by-step user guide](USER-GUIDE.md) for adding cars, changing categories,
+editing content, and combining edits with a category move.
 
-Es ist keine Installation nötig. Der Editor lädt keine Daten hoch und startet keine Programme. Er speichert die Website-Quelldateien. Ein vorhandener `dist`-Ordner wird **nicht** aktualisiert; die veröffentlichbare Website muss separat gebaut werden. **ZIP erstellen** bleibt als alternative Ausgabe verfügbar.
+1. Alle Dateien zusammenlassen. `index.html` in einer aktuellen Desktop-Version von Chrome oder Edge öffnen (macOS oder Windows).
+2. Den vollständigen Website-Projektordner auswählen. Der Editor liest dessen Fahrzeuge und prüft die Ausgabe gegen dieses Projekt.
+3. Ein Fahrzeug öffnen oder **Neues Fahrzeug** wählen. Deutsche und englische Texte sowie Bildbeschreibungen vollständig ausfüllen. Neue Galeriebeschreibungen starten leer und müssen die sichtbare Aufnahme beschreiben.
+4. Unter **Prüfen & exportieren** die Vorschau ansehen und **ZIP erstellen** wählen. Die Ausgabe prüft automatisch Pflichtfelder, lokale Bilder, Zielroute und Sortierwert; **Änderungen prüfen** erlaubt dieselbe Prüfung vorab.
+5. Die ZIP außerhalb des Website-Ordners entpacken. Im Terminal den Website-Ordner öffnen und `npm run vehicles:transfer` ausführen. Den entpackten Ordner bei der Aufforderung ins Terminal ziehen und Eingabetaste drücken. Bei einem bestehenden Fahrzeug dessen angezeigte Nummer auswählen. Alle Änderungen prüfen und mit `JA` bestätigen. Der Befehl übernimmt Dateien mit Sicherung, entfernt bei Kategoriewechseln das alte Paar und aktualisiert Weiterleitungen, Sitemap und vorhandene llms.txt-Verweise. Nicht selbst kopieren oder löschen.
+6. Anschließend `npm run build` ausführen, für die GitHub-Pages-Vorschau `npm run build:pages`. Die Website separat veröffentlichen. Ein zusätzlicher `vehicles:sync`-Aufruf ist bei dieser Übernahme nicht nötig.
 
-Beim erneuten Öffnen muss der Projektordner erneut ausgewählt werden. Ein abgebrochener Ordnerdialog verändert die aktuelle Arbeit nicht. Ungespeicherte Eingaben gehen beim Schließen des Browsers verloren; bei Bedarf vorher als ZIP sichern.
+Der Editor erstellt eine lokale ZIP. Er schreibt keine Fahrzeugdateien ins Projekt, aktualisiert keine Sitemap, startet keine Programme und veröffentlicht nichts. Eine erzeugte ZIP enthält Website-Quelldateien; `dist` wird erst durch den separaten Build aktualisiert.
 
-## Sicherungen und unterbrochene Vorgänge
+Der Übernahme-Befehl zeigt kurze deutsche Statusmeldungen und fragt vor dem Speichern nach einer Bestätigung (JA). Es öffnet sich keine zusätzliche Seite. Nach dem Speichern erstellt der Befehl die Vorschaubilder. Eine mit `npm run dev` gestartete Vorschau pausiert während der Übernahme und startet anschließend automatisch mit den neuen Fahrzeugen, Bildern und beiden Sprachen neu. Danach die Browserseite neu laden. Eine neue Vorschau mit `npm run dev` starten und mit Strg+C beenden. Wenn das Fahrzeug gespeichert wurde, aber die Vorschauvorbereitung fehlschlägt, nennt der Befehl diesen Unterschied ausdrücklich und behält die Sicherung.
 
-Vor dem Schreiben legt der Editor unter `.cache/vehicle-browser-backup-…` im Website-Projekt Originaldateien und ein Journal an. Diese Sicherung bleibt erhalten. Während eines Speichervorgangs dürfen das Projekt und seine Dateien nicht gleichzeitig in einem anderen Editor, Browserfenster oder Importprogramm geändert werden.
+Die Übernahme verwendet den geprüften Website-Importer. Vorhandene Fahrzeuge werden nur nach ausdrücklicher Auswahl des angezeigten Originals ersetzt oder verschoben. Für neue Fahrzeuge, Inhaltsänderungen und Kategoriewechsel gilt derselbe Befehl ohne zusätzliche Optionen. Die Prüfung muss vor der Bestätigung vollständig angesehen werden. Bei einem Kategoriewechsel bleiben deutsche und englische URLs durch Weiterleitungen erreichbar. Für die getrennte Prüfung/Freigabe steht weiterhin `vehicles:review` bereit; siehe `VEHICLE-CONTENT-GUIDE.md` im Website-Projekt.
 
-Bei einem Schreibfehler versucht der Editor, die Originaldateien wiederherzustellen. Nach einem Browserabsturz den Projektordner erneut auswählen und **Unterbrochenen Speichervorgang wiederherstellen** wählen. Bereits vollständig abgeschlossene Vorgänge werden dabei nur entsperrt; unvollständige Vorgänge werden zurückgesetzt.
+Nach der Übernahme die Projektliste neu laden, bevor weitere Fahrzeuge exportiert werden. Externe Projektänderungen machen die vorherige Projektprüfung ungültig. Beim Schließen gehen nicht exportierte Entwürfe verloren; ungespeicherte Änderungen werden vor dem Wechsel abgefragt.
 
-Wurden betroffene Dateien inzwischen extern verändert oder ist eine Sicherung beschädigt, stoppt die Wiederherstellung. Die angezeigte Sicherung und `.cache/vehicle-import.lock` aufbewahren; nicht einfach löschen oder erneut darüber speichern. Fremde Sperren des Website-Importers werden nicht automatisch entfernt.
+## Frühere Speichervorgänge
 
-Browser können nicht alle Dateien als eine einzige atomare Änderung speichern. Der Editor verwendet Sicherungen, Prüfsummen und ein Wiederherstellungsjournal. Die Website-Buildprüfung bleibt die abschließende Prüfung vor einer Veröffentlichung.
-# oldtimer-intern
+Die direkte Speicherfunktion wurde entfernt. Vorhandene Journale und Sicherungen früherer Versionen bleiben geschützt. Bei einem unterbrochenen Vorgang kann die bestehende Wiederherstellungsfunktion weiterhin Originaldateien zurücksetzen oder einen abgeschlossenen Vorgang entsperren. Konflikte, beschädigte Sicherungen und fremde Importsperren erfordern eine manuelle Prüfung; Sperren nicht einfach löschen.
 
-## Geprüfte Dateigrenzen und Wiederherstellung
-
-ZIP-Export, direktes Speichern und der geprüfte Website-Importer verwenden dieselben Fahrzeuggrenzen: 2 MiB für `vehicle.json`, 50 MiB und 100 Megapixel je Bild, 2000 Dateien im Fahrzeugordner und 512 MiB Fahrzeugdaten insgesamt. Dateinamen müssen unter Windows verwendbar sein; neue Bilder reservieren ihre Namen auch ohne Beachtung der Großschreibung und nach WebP-Konvertierung.
-
-Wenn Dateien gespeichert wurden, aber das Entfernen der Projektsperre scheitert, meldet der Editor ausdrücklich den erfolgreichen Speichervorgang. Unter „Projektordner“ lässt sich der abgeschlossene Vorgang entsperren. Dabei werden keine älteren Inhalte zurückgeschrieben; alte Sicherungsdateien sind dafür nicht erforderlich. Bei einer unterbrochenen Schreibphase werden dagegen aktuelle Dateien, Sicherungen und die Sperrzugehörigkeit vor jeder Wiederherstellung erneut geprüft. Externe Änderungen bleiben bei einem Konflikt erhalten.
+ZIP-Ausgaben verwenden die geprüften Grenzen: 2 MiB JSON, 50 MiB und 100 Megapixel je Bild, 2000 Fahrzeugdateien und 512 MiB Fahrzeugdaten insgesamt. Die Website-Buildprüfung bleibt die abschließende Kompatibilitätsprüfung.
 
 ## Reading sequence and page preview
 
@@ -42,11 +39,11 @@ photo run; text and contact blocks end it. A lead already used in a gallery is n
 repeated above the story. A lead outside the story appears before the first block.
 It also supplies the representative image for search and shared links.
 
-Under **Prüfen & speichern**, **Fahrzeugseite ansehen** opens a local preview with
+Under **Prüfen & exportieren**, **Fahrzeugseite ansehen** opens a local preview with
 German/English and desktop/tablet/mobile controls. It shows the reading sequence
 and each occurrence's caption; fonts and surrounding website navigation are
-simplified. Previewing does not authorize a save. No extra layout configuration or
-historical source snapshot is needed. Saving and ZIP export retain the existing
+simplified. Previewing does not copy files into the project. No extra layout configuration or
+historical source snapshot is needed. ZIP exports retain the existing
 vehicle JSON and page/folder contract.
 
 ## Developer verification
@@ -62,6 +59,6 @@ responses; the distributed editor still needs no installation or server.
 
 The added cases cover splitting, occurrence captions and alternatives in both
 languages, adjacent photo runs, lead placement, preview focus and review validity,
-ZIP/import round trips, save/reload, category moves, rollback and interrupted
-recovery. Native file-picker compatibility must still be checked through the
+ZIP/import round trips, project review, export collisions and category changes. Historical
+transaction recovery remains tested separately. Native file-picker compatibility must still be checked through the
 actual `file://` entry point on the available target browsers.

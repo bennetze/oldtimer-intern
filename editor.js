@@ -68,13 +68,21 @@
           return typeof value === 'string' && value.length <= 255 && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) && !value.includes('..') && !value.endsWith('.') && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value);
         }
 
-        function validateVehicleRecord(record, checkHtml = () => {}, { legacy = false } = {}) {
+        function genericVehicleAlternative(value) {
+          return /Aufnahme \d+ der Fahrzeugdokumentation|photograph \d+ in the vehicle record/i.test(value || '');
+        }
+
+        function validateVehicleRecord(record, checkHtml = () => {}) {
           const fail = (message) => { throw new Error(`vehicle.json: ${message}`); };
           const object = (value, allowed, context) => {
             if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${context}: Ein Objekt wird erwartet.`);
             for (const key of Object.keys(value)) if (!allowed.includes(key)) fail(`${context}: unbekanntes Feld ${key}.`);
           };
           const text = (value, context) => { if (typeof value !== 'string' || !value.trim()) fail(`${context}: Text ist erforderlich.`); };
+          const alternative = (value, context) => {
+            text(value, context);
+            if (genericVehicleAlternative(value)) fail(`${context}: Bitte die sichtbare Aufnahme beschreiben statt einen nummerierten Platzhalter zu verwenden.`);
+          };
           const image = (value) => {
             if (typeof value !== 'string' || !/^\.\/[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp|avif)$/i.test(value) || !validVehicleFilename(value.slice(2)) || !validVehicleFilename(value.slice(2).replace(/\.[^.]+$/, '.webp'))) fail(`Ungültiger Bildpfad: ${value}`);
           };
@@ -83,8 +91,9 @@
           if (!['aktuelle-projekte', 'vergangene-projekte', 'fahrzeugangebote'].includes(record.category)) fail('Ungültige Kategorie.');
           for (const key of ['title', 'description', 'cardImageAlt', 'leadImageAlt']) text(record[key], key);
           for (const key of ['titleEn', 'descriptionEn', 'cardImageAltEn', 'leadImageAltEn']) {
-            if (!legacy || record[key] !== undefined) text(record[key], key);
+            text(record[key], key);
           }
+          for (const key of ['cardImageAlt', 'leadImageAlt', 'cardImageAltEn', 'leadImageAltEn']) alternative(record[key], key);
           if (!Number.isSafeInteger(record.order)) fail('Der Sortierwert muss eine sicher darstellbare ganze Zahl sein.');
           if (!validVehicleDate(record.dateModified)) fail('Ungültiges Kalenderdatum.');
           if (record.year !== undefined && (typeof record.year !== 'string' || !/^\d{4}$/.test(record.year))) fail('Das Baujahr muss aus vier Ziffern bestehen.');
@@ -99,20 +108,18 @@
               object(block, ['type', 'html', 'htmlEn'], `Block ${index + 1}`);
               text(block.html, `Block ${index + 1}`);
               checkHtml(block.html, `Block ${index + 1} Deutsch`);
-              if (!legacy || block.htmlEn !== undefined) {
-                text(block.htmlEn, `Block ${index + 1} Englisch`);
-                checkHtml(block.htmlEn, `Block ${index + 1} Englisch`);
-              }
+              text(block.htmlEn, `Block ${index + 1} Englisch`);
+              checkHtml(block.htmlEn, `Block ${index + 1} Englisch`);
             } else if (block?.type === 'gallery') {
               object(block, ['type', 'images'], `Block ${index + 1}`);
               if (!Array.isArray(block.images) || !block.images.length) fail(`Galerie ${index + 1} ist leer.`);
               for (const item of block.images) {
                 object(item, ['src', 'alt', 'caption', 'altEn', 'captionEn'], `Galerie ${index + 1}`);
-                image(item.src); text(item.alt, `Galerie ${index + 1}: Alternativtext`);
-                if (!legacy || item.altEn !== undefined) text(item.altEn, `Galerie ${index + 1}: Englischer Alternativtext`);
+                image(item.src); alternative(item.alt, `Gallery ${index + 1}: ${item.src}: German alternative text`);
+                alternative(item.altEn, `Gallery ${index + 1}: ${item.src}: English alternative text`);
                 if (item.caption !== undefined && typeof item.caption !== 'string') fail('Die Bildunterschrift muss Text sein.');
                 if (item.captionEn !== undefined && typeof item.captionEn !== 'string') fail('Die englische Bildunterschrift muss Text sein.');
-                if (!legacy && Boolean(item.caption?.trim()) !== Boolean(item.captionEn?.trim())) fail('Bildunterschriften müssen in beiden Sprachen vorhanden sein oder in beiden fehlen.');
+                if (Boolean(item.caption?.trim()) !== Boolean(item.captionEn?.trim())) fail('Bildunterschriften müssen in beiden Sprachen vorhanden sein oder in beiden fehlen.');
               }
             } else fail(`Unbekannter Blocktyp in Block ${index + 1}.`);
           }
@@ -167,13 +174,8 @@
         }
         const technical = $("#technical-details");
         $(".advanced__body", technical).prepend(fields.slug.closest(".field"), fields.sourceUrl.closest(".field"));
-        const legacyLabel = document.createElement("label");
-        legacyLabel.className = "check-label";
-        legacyLabel.innerHTML = '<input id="legacy-import" type="checkbox" /> Älteres Fahrzeug nur mit deutschen Texten importieren (Englisch muss vor dem Export ergänzt werden)';
         const importFilesDetails = $("#import-files").closest("details");
-        importFilesDetails.after(legacyLabel);
         importFilesDetails.open = true;
-        $("#import-options-slot").append(legacyLabel);
         importFilesDetails.hidden = true;
         const dateActions = document.createElement("div");
         dateActions.className = "date-actions";
@@ -191,14 +193,14 @@
         }
         document.addEventListener("input", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
         document.addEventListener("change", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
-        function autoAltEn(index) {
-          const title = fields.titleEn.value.trim();
-          return title ? `${title} – photograph ${index + 1} in the vehicle record` : "";
+        function autoAltEn() {
+          return "";
         }
         function pairImageFields() {
           for (const image of state.images) {
             const alt = $(`[data-image-alt="${image.id}"]`);
             pairControl(alt, image.altEn || "", "Alternativtext");
+            for (const input of alt.closest(".language-pair").querySelectorAll("input")) input.placeholder = input.dataset.language === "en" ? "Describe the visible view, details or work" : "Sichtbare Ansicht, Details oder Arbeiten beschreiben";
             pairControl($(`[data-image-caption="${image.id}"]`), image.captionEn || "", "Bildunterschrift (optional)", false);
           }
           updateCompletion();
@@ -252,6 +254,9 @@
           for (const element of $$('[data-bilingual-required="true"]')) {
             const value = element.matches("[contenteditable]") ? stripHtml(element.innerHTML) : element.value.trim();
             if (!value) issues.push({ element, message: `${element.dataset.fieldLabel}: Text ist erforderlich.` });
+            else if ((element.matches('[data-image-alt], [data-entry-alt]') || [fields.cardAlt, fields.cardAltEn, fields.leadAlt, fields.leadAltEn].includes(element)) && genericVehicleAlternative(value)) {
+              issues.push({ element, message: `${element.dataset.fieldLabel}: Bitte die sichtbare Aufnahme beschreiben statt einen nummerierten Platzhalter zu verwenden.` });
+            }
           }
           for (const pair of $$(".language-pair")) {
             const optional = $$('[data-bilingual-required="false"]', pair);
@@ -324,7 +329,7 @@
           review.className = `review-state ${total ? "is-incomplete" : "is-ready"}`;
           review.textContent = total
             ? `${total} ${total === 1 ? "Angabe fehlt" : "Angaben fehlen"}. Sie können jeden Schritt direkt öffnen.`
-            : "Alle Pflichtangaben sind vollständig. Die Änderungen können geprüft und gespeichert werden.";
+            : "Alle Pflichtangaben sind vollständig. Die Änderungen können geprüft und als ZIP exportiert werden.";
         }
 
         function showStep(name, { focus = false } = {}) {
@@ -436,12 +441,12 @@
             if (size >= 0xffffffff) throw new Error("Der Export überschreitet 512 MiB. Bitte kleinere Bilder verwenden.");
           }
         }
-        function validateRecord(record, legacy = false) {
+        function validateRecord(record) {
           return validateVehicleRecord(record, (html, context) => {
             const report = {};
             sanitizeHtml(html, report);
             if (report.removed || report.normalized || !stripHtml(html)) throw new Error(`${context}: Nicht unterstütztes oder leeres HTML. Bitte den Text überarbeiten.`);
-          }, { legacy });
+          });
         }
         async function importVehicle(fileList, { managed = false } = {}) {
           if (state.busy || !fileList.length) return;
@@ -468,8 +473,7 @@
             let record;
             try { record = JSON.parse(await json.text()); }
             catch { throw new Error("vehicle.json enthält kein gültiges JSON. Bitte die Datei prüfen."); }
-            const legacy = $("#legacy-import").checked;
-            validateRecord(record, legacy);
+            validateRecord(record);
             if (root && root !== record.slug) throw new Error("Ordnername und Slug stimmen nicht überein.");
             const checked = new Map();
             for (const file of files.values()) {
@@ -520,7 +524,7 @@
             renderImages(); renderBlocks(); updateSummary();
             showEditor("existing");
             imported = true;
-            setStatus([], legacy ? "Älteres Fahrzeug geladen. Vor dem Export alle englischen Felder ergänzen." : "Fahrzeug vollständig geladen.");
+            setStatus([], "Fahrzeug vollständig geladen.");
           }, managed);
           return imported;
         }
@@ -645,9 +649,8 @@
           return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
         }
 
-        function autoAlt(index) {
-          const title = fields.title.value.trim() || "Fahrzeug";
-          return `${title} – Aufnahme ${index + 1} der Fahrzeugdokumentation`;
+        function autoAlt() {
+          return "";
         }
 
         function renumberImages() {
@@ -1339,6 +1342,7 @@
           try {
             const snapshot = editorSnapshot();
             updateSummary();
+            await workflow?.prepareExport(snapshot);
             const record = snapshot.record;
             const base = `${record.category}`;
             const folder = `${base}/${record.slug}`;

@@ -1,4 +1,4 @@
-/* Connect the existing editor to project selection, review, and checked saving. */
+/* Connect the existing editor to project selection, read-only review, and ZIP export. */
 window.VehicleProjectUI = function (api) {
   "use strict";
   const A = window.VehicleProjectAccess, S = window.VehicleProjectSave;
@@ -14,8 +14,14 @@ window.VehicleProjectUI = function (api) {
   function invalidateReview() {
     if (!review) return;
     review = null;
-    $('#save-review').textContent = 'Die Eingaben wurden geändert. Bitte erneut prüfen.';
-    $('#save-project').disabled = true;
+    $('#save-review').dataset.reviewState = 'stale';
+    $('#save-review').textContent = 'Die Eingaben wurden geändert. Die ZIP-Ausgabe prüft sie erneut.';
+  }
+  function clearReview() {
+    review = null; reviewFingerprint = '';
+    $('#save-review').dataset.reviewState = 'idle';
+    feedback($('#save-review'), 'Noch nicht geprüft.');
+    $('#after-export').hidden = true;
   }
   const discard = () => !dirty() || confirm("Ungespeicherte Änderungen verwerfen und ein anderes Fahrzeug oder Projekt öffnen?");
   function feedback(element, message, error = false) {
@@ -32,9 +38,8 @@ window.VehicleProjectUI = function (api) {
     $('[data-step-status="selection"]').textContent = selected ? 'Ausgewählt' : 'Offen';
     $('[data-step-target="project"]').classList.toggle('is-complete', !!project);
     $('[data-step-target="selection"]').classList.toggle('is-complete', selected);
-    if (review && reviewFingerprint !== fingerprint()) { review = null; $('#save-review').textContent = 'Die Eingaben wurden geändert. Bitte erneut prüfen.'; }
-    $('#prepare-save').disabled = busy || recoveryBlocksCurrent || !selected || api.validate().errors.length > 0;
-    $('#save-project').disabled = busy || recoveryBlocksCurrent || !review || !selected;
+    if (review && reviewFingerprint !== fingerprint()) invalidateReview();
+    $('#prepare-save').disabled = busy || api.state.busy || recoveryBlocksCurrent || !selected || api.validate().errors.length > 0;
     const steps = ['project', 'selection', 'vehicle', 'images', 'content', 'review'];
     const index = steps.indexOf(api.state.currentStep);
     $('#step-next').disabled = !canOpen(steps[index + 1]);
@@ -85,7 +90,7 @@ window.VehicleProjectUI = function (api) {
     }
     const next = await A.inspect(root, api.validateRecord);
     S.parseDates(await A.text(root, 'src/config/modificationDates.js'));
-    project = next; recoveryRoot = null; selected = false; from = null; review = null;
+    project = next; recoveryRoot = null; selected = false; from = null; clearReview();
     recoveryBlocksCurrent = false;
     $('#recover-project').hidden = true; $('#project-name').textContent = `Verbunden: ${root.name}`;
     feedback($('#project-feedback'), 'Projektordner erfolgreich geprüft.');
@@ -96,7 +101,7 @@ window.VehicleProjectUI = function (api) {
     if (!window.showDirectoryPicker || !window.isSecureContext) { feedback($('#project-feedback'), 'Bitte index.html in einer aktuellen Desktop-Version von Chrome oder Edge öffnen. Dieser Browser unterstützt den benötigten Ordnerzugriff nicht.', true); return; }
     await operation(async () => {
       let root;
-      try { root = await window.showDirectoryPicker({ id: 'oldtimer-website', mode: 'readwrite' }); }
+      try { root = await window.showDirectoryPicker({ id: 'oldtimer-website', mode: 'read' }); }
       catch (error) { if (error.name !== 'AbortError') throw error; return; }
       await loadProject(root);
     }, $('#project-feedback'));
@@ -116,7 +121,7 @@ window.VehicleProjectUI = function (api) {
   $('#category-filter').addEventListener('change', renderList);
   $('#start-new').addEventListener('click', () => {
     if (!project || !discard()) return;
-    api.resetEditor(); selected = true; from = null; review = null;
+    api.resetEditor(); selected = true; from = null; clearReview();
     if ($('#category-filter').value) api.fields.category.value = $('#category-filter').value;
     baseline = fingerprint(); api.showEditor('new'); api.updateSummary();
   });
@@ -129,7 +134,7 @@ window.VehicleProjectUI = function (api) {
       api.setBusy(false);
       const imported = await api.importVehicle(files, { managed: true });
       if (!imported) throw new Error($('#status').textContent || $('#workspace-status').textContent || 'Fahrzeug konnte nicht geladen werden.');
-      selected = true; from = item.key; review = null; baseline = fingerprint();
+      selected = true; from = item.key; clearReview(); baseline = fingerprint();
       openStep('vehicle');
     }, $('#selection-feedback'));
   }
@@ -138,54 +143,34 @@ window.VehicleProjectUI = function (api) {
     const summary = document.createElement('p');
     summary.textContent = `Projekt: ${project.root.name}\n${value.from ? `Original: /projekte/${value.from}/\n` : 'Neues Fahrzeug\n'}Ziel: /projekte/${value.key}/\n\n${value.summary.length ? value.summary.map(entry => `${entry.action}: ${entry.path}`).join('\n') : 'Keine Dateiänderungen.'}`;
     root.append(summary);
-    const notice = document.createElement('p'); notice.textContent = 'Mit „Im Projekt speichern“ übernehmen Sie genau diese Änderungen. Eine Sicherung wird vor dem Schreiben angelegt.'; root.append(notice);
+    root.dataset.reviewState = 'ready';
+    root.classList.remove('feedback-error'); root.setAttribute('role', 'status');
+    const notice = document.createElement('p'); notice.textContent = value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
+    $('#transfer-command').textContent = 'npm run vehicles:transfer';
+  }
+  async function prepareExport(snapshot) {
+    if (!project || !selected || recoveryBlocksCurrent) throw new Error('Bitte zuerst einen gültigen Projektordner und ein Fahrzeug auswählen.');
+    review = null;
+    $('#save-review').dataset.reviewState = 'checking';
+    feedback($('#save-review'), 'Dateien und Projekt werden geprüft …');
+    const stamp = fingerprint();
+    try {
+      const checked = await S.prepare(project, snapshot, from, api);
+      if (stamp !== fingerprint()) throw new Error('Die Eingaben wurden während der Prüfung geändert. Bitte erneut prüfen.');
+      review = checked; reviewFingerprint = stamp; renderReview(review);
+      return checked;
+    } catch (error) {
+      $('#save-review').dataset.reviewState = 'error';
+      feedback($('#save-review'), error.message, true);
+      throw error;
+    }
   }
   $('#prepare-save').addEventListener('click', () => operation(async () => {
-    review = null; feedback($('#save-review'), 'Dateien und Projekt werden geprüft …');
     const snapshot = api.editorSnapshot();
     api.updateSummary();
-    const stamp = fingerprint();
-    const checked = await S.prepare(project, snapshot, from, api);
-    if (stamp !== fingerprint()) throw new Error('Die Eingaben wurden während der Prüfung geändert. Bitte erneut prüfen.');
-    review = checked; reviewFingerprint = stamp; renderReview(review);
+    await prepareExport(snapshot);
   }, $('#save-review')));
-  $('#save-project').addEventListener('click', async () => {
-    if (!review || reviewFingerprint !== fingerprint() || busy) return;
-    const checked = review, checkedProject = project, stamp = reviewFingerprint;
-    await operation(async () => {
-      // Called synchronously from the click, retaining user activation for permission.
-      const permission = await checkedProject.root.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
-      if (permission !== 'granted') throw new Error('Bitte Schreibzugriff erlauben. Ihre geprüften Änderungen bleiben erhalten.');
-      if (project !== checkedProject || review !== checked || stamp !== fingerprint()) throw new Error('Die Eingaben oder das Projekt wurden geändert. Bitte erneut prüfen.');
-      review = null;
-      feedback($('#save-review'), 'Sicherung wird angelegt und Änderungen werden gespeichert …');
-      let committed = false;
-      try {
-        const result = await S.apply(checked);
-        committed = result.committed;
-        // Reload the committed bytes, preserving filenames and original metadata for the next save.
-        project = await A.inspect(project.root, api.validateRecord);
-        const files = await A.vehicleFiles(project.root, checked.key);
-        api.setBusy(false);
-        if (!await api.importVehicle(files, { managed: true })) throw new Error('Gespeicherte Dateien konnten nicht wieder in den Editor geladen werden. Bitte Projekt erneut auswählen.');
-        from = checked.key; selected = true; baseline = fingerprint();
-        renderList(); openStep('review');
-        if (result.cleanupPending) {
-          recoveryRoot = project.root; recoveryBlocksCurrent = true; $('#recover-project').hidden = false;
-          feedback($('#project-feedback'), `Die Änderungen wurden gespeichert. Bitte den abgeschlossenen Vorgang entsperren. Sicherung: ${result.backup}`, true);
-        }
-        feedback($('#save-review'), `Änderungen im Projekt gespeichert.\n${result.backup ? `Sicherung: ${result.backup}\n` : ''}${result.cleanupPending ? 'Die Projektsperre konnte nicht entfernt werden. Bitte unter „Projektordner“ den abgeschlossenen Vorgang entsperren.\n' : ''}Die hochladbare Website (dist) muss separat erstellt werden.`);
-      } catch (error) {
-        if (await A.hasDirectory(project.root, S.lock).catch(() => true)) {
-          recoveryRoot = project.root; recoveryBlocksCurrent = true; $('#recover-project').hidden = false;
-          feedback($('#project-feedback'), committed ? 'Die Änderungen wurden gespeichert. Bitte den abgeschlossenen Vorgang unter „Projektordner“ entsperren.' : 'Ein Speichervorgang wurde unterbrochen. Bitte wiederherstellen, bevor Sie weitere Änderungen speichern.', true);
-        }
-        if (committed) throw new Error(`Änderungen wurden gespeichert, aber das erneute Laden ist fehlgeschlagen. Bitte den Projektordner erneut auswählen.\n${error.message}`);
-        throw new Error(`Änderungen konnten nicht im Astro-Projekt gespeichert werden.\n${error.message}`);
-      }
-    }, $('#save-review'));
-  });
   window.addEventListener('beforeunload', event => { if (dirty() || busy) { event.preventDefault(); event.returnValue = ''; } });
   if (!window.showDirectoryPicker || !window.isSecureContext) feedback($('#project-feedback'), 'Bitte index.html in Chrome oder Edge auf einem Computer öffnen. Der benötigte Ordnerzugriff ist hier nicht verfügbar.', true);
-  return { canOpen, update, invalidateReview };
+  return { canOpen, update, invalidateReview, prepareExport };
 };

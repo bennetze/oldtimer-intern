@@ -4,7 +4,8 @@
 
 This repository contains an offline browser editor for vehicle pages on the
 Oldtimermanufaktur website. Open `index.html` in desktop Chrome or Edge, select the
-complete website project, choose or create a vehicle, edit, review, and save.
+complete website project, choose or create a vehicle, edit, review, and export a ZIP
+for the website's guided CLI transfer.
 
 The deliverable uses local classic scripts and styles:
 
@@ -12,12 +13,13 @@ The deliverable uses local classic scripts and styles:
 - `styles.css`, `workflow.css`: existing editor and workflow layout.
 - `editor.js`: bilingual authoring, validation, images, ZIP export.
 - `project-access.js`: directory handles, discovery, snapshots.
-- `project-save.js`: checked save, sitemap/redirect updates, backups/recovery.
-- `project-ui.js`: project selection, vehicle list, review and save UI.
+- `project-save.js`: read-only preparation and historical transaction recovery.
+- `project-ui.js`: project selection, vehicle list, read-only review and ZIP export UI.
 
 All files must remain together. There is no install, server, package manager, or
-build step for this tool. Saving changes source files; building `dist` is separate.
-ZIP export remains available for the website's checked CLI importer.
+build step for this tool. The editor does not write vehicle source files. Building
+`dist` is separate. ZIP export followed by `npm run vehicles:transfer` in the
+website repository is the normal workflow.
 
 Use English for collaboration and technical documentation unless the user requests
 another language. Keep the tool's interface and actionable messages in German.
@@ -31,7 +33,7 @@ Preserve these six steps, all visible in the navigation:
 3. Fahrzeug & Kategorie
 4. Bilder
 5. Inhalte
-6. Prüfen & speichern
+6. Prüfen & exportieren
 
 Keep the top bar removed. Disable dependent steps until a project and vehicle have
 been selected. Preserve numbered navigation, completion states, visible keyboard
@@ -50,14 +52,85 @@ independent of the website's numeric archive order. Preserve the project and fil
 while switching vehicles. Confirm before discarding unsaved work; cancellation or
 failed folder selection must not replace current work.
 
-The final step first prepares a review of the project, original/destination route,
-and affected files. `Im Projekt speichern` authorizes exactly that reviewed change.
-Invalidate the review when inputs change. After saving, reload the committed data
-and refresh the vehicle list. Keep ZIP export secondary.
+The final step provides a read-only project review and ZIP export. There is no
+`Im Projekt speichern` button. Every export automatically checks the immutable
+snapshot against the selected project for route/order collisions and changed
+source files. Never restore automatic project writes. Invalidate reviews when
+inputs change. ZIP files contain only the category's paired Astro page and vehicle
+folder, not sitemap or redirects. Explain the guided transfer described below;
+the website CLI handles placement, replacement, category moves and crawler updates.
 
-Saving updates source files only. Do not add npm detection, installation, automatic
+ZIP export does not update source files. Do not add npm detection, installation, automatic
 builds, or build-error alerts to the tool. Never imply that saving refreshes `dist`
 or produces an uploadable website; building and publishing remain separate.
+
+## Guided website transfer and live preview
+
+Use the same workflow for adding a vehicle, changing its category, editing its
+content, or editing content and category together:
+
+1. Review and export the ZIP in the editor.
+2. Extract it outside the website project, for example in Downloads.
+3. In the website repository, run `npm run vehicles:transfer`.
+4. Drag the extracted folder into the terminal prompt and press Enter. For an
+   existing vehicle, select the exact original from the numbered list. Confirm
+   the transfer by typing `JA`.
+5. Reload the website preview and refresh the editor's project vehicle list before
+   continuing to edit the transferred vehicle. Build separately when needed.
+
+Do not require nontechnical users to type paths, `--`, `--from`, approval tokens,
+or other flags. Do not instruct them to copy files into category folders, delete
+the old vehicle, or run `vehicles:sync` or `vehicles:gallery` after this command.
+The transfer handles these operations. The advanced `vehicles:review` check/apply
+commands remain available for technical use, with explicit original routes and
+review-bound approval.
+
+Accept a single extracted export's outer folder or its category folder. Handle
+quoted paths and shell-escaped spaces from terminal drag-and-drop. Accept category
+folder suffixes created by extraction, such as `fahrzeugangebote 4` on macOS and
+`fahrzeugangebote (2)` on Windows, while retaining strict category, slug, pair,
+image and content validation. Never extract over existing project files.
+
+Matching slugs only suggest existing vehicles. Show each candidate's title,
+category and exact original route; require explicit numbered selection before
+replacement or a move. Never infer replacement approval from a matching title.
+Empty, invalid or zero selections cancel. The final `JA` applies only to the
+immutable checked review; recheck sources and destination before committing.
+Retain locks, durable backups and rollback. Category moves remove the original
+pair and update German and English redirects, sitemap and affected existing
+`llms.txt` links through the checked importer.
+
+Keep CLI prompts and logs short and in German, for example `Fahrzeug wird geprüft …`,
+`Prüfung erfolgreich.`, `Fahrzeug gespeichert.`, `Vorschaubilder werden erstellt …`
+and `Fertig. Browserseite neu laden.` Keep actionable error causes and recovery
+backup paths. Do not create an additional review HTML site, open a browser from
+the transfer command, or print full JSON, hashes, crawler diffs or long explanations.
+Preserve the editor's existing read-only review and sandboxed vehicle preview.
+
+After committing source files, the transfer refreshes generated gallery assets
+and image metadata. Missing or stale metadata must not leave `npm run dev` showing
+`Missing generated image metadata` after an otherwise successful transfer.
+The website's `npm run dev` prepares images at startup and runs a foreground
+supervisor: it pauses the Astro preview during transfer, then starts a fresh Astro
+process after assets are ready. Reload both the content collection and injected
+English routes together. Preserve development redirects for old category URLs.
+Use the preview URL printed by the command; `Ctrl+C` stops the preview. Restart an
+already-running older dev command once after changing this supervisor.
+
+The preview signal is `.cache/vehicle-preview-state.json`, with a unique id,
+publisher pid and `updating`, `ready` or `blocked` phase. Recover derived assets
+when the publisher has exited, but block preview when `.cache/vehicle-import.lock`
+indicates an active or interrupted import. Never delete a foreign lock. Preserve
+malformed derived gallery metadata as an `*.invalid-<uuid>.json` file before
+rebuilding from validated source; do not relax source validation or accept symlinks.
+
+If source transfer succeeded but preview preparation failed, report that the
+vehicle was saved, include its backup path and keep preview paused. After fixing
+the cause, restart `npm run dev`; do not suggest repeating the import as a new
+vehicle. Transfer refreshes preview assets, not `dist`, and never builds or publishes.
+`npm run build` produces the production site; `npm run build:pages` is the separate
+GitHub Pages build when required. These commands belong to the website repository,
+never this offline editor.
 
 ## Related website repository and source of truth
 
@@ -81,6 +154,20 @@ The most important contract files there are:
   image-reference, metadata, and duplicate-order validation.
 - `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-import.mjs`: reference
   checked-import behavior, replacements, backups, and category moves.
+- `/Users/betannet/Developer/oldtimer/scripts/transfer-vehicle.mjs` and
+  `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-transfer-wizard.mjs`:
+  guided folder input and explicit original-vehicle selection.
+- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-transfer.mjs` and
+  `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-preview.mjs`: confirmed
+  transfer, short German messages, gallery refresh and preview signals.
+- `/Users/betannet/Developer/oldtimer/scripts/dev-vehicles.mjs` and
+  `/Users/betannet/Developer/oldtimer/scripts/vehicle-dev-server.mjs`: foreground
+  preview supervision and fresh Astro processes.
+- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-gallery.mjs` and
+  `/Users/betannet/Developer/oldtimer/src/config/vehicleImages.ts`: generated gallery
+  assets and image metadata consumed by rendering.
+- `/Users/betannet/Developer/oldtimer/src/config/vehicleDevRedirects.js` and
+  `/Users/betannet/Developer/oldtimer/src/middleware.ts`: development redirects.
 - `/Users/betannet/Developer/oldtimer/scripts/lib/crawlers.mjs` and
   `/Users/betannet/Developer/oldtimer/src/config/modificationDates.js`: sitemap,
   bilingual routes, pagination, and reviewed date rules.
@@ -105,7 +192,9 @@ unrelated website edits.
 - Do not add `package.json`, a build step, runtime dependencies, CDN scripts, remote
   fonts, analytics, network requests, storage services, or a backend.
 - The file must work when opened via a local `file://` URL.
-- Vehicle data and images stay on the local computer. Only an explicit reviewed save writes to the selected project; ZIP export remains local.
+- Vehicle data and images stay on the local computer. The editor exports locally;
+  source writes belong to the explicitly confirmed website CLI transfer. Historical
+  browser transaction recovery remains separate from authoring.
 - Keep tool UI copy in German. Vehicle content is authored in German and English.
 - Continue supporting desktop and mobile layouts, keyboard use, visible focus states,
   drag-and-drop plus button-based reordering, and screen-reader status updates.
@@ -114,8 +203,8 @@ unrelated website edits.
 
 ## Generated filesystem contract
 
-Direct saving writes the vehicle pair under `src/pages/projekte/<category>/` in the
-selected project. The ZIP contains the same pair under one category directory,
+The confirmed website CLI transfer places the vehicle pair under
+`src/pages/projekte/<category>/`. The ZIP contains the same pair under one category directory,
 without the `src/pages/projekte/` prefix. Use exactly one of these category keys:
 
 - `aktuelle-projekte`
@@ -222,7 +311,7 @@ The generator normally creates order automatically from `Date.now()`:
 
 This preserves existing sequential positive orders and the established ZIP contract.
 With negative timestamps, the most recently generated "beginning" item sorts first.
-With positive timestamps, newer "end" items sort after older ones. Direct saving
+With positive timestamps, newer "end" items sort after older ones. ZIP preparation
 also checks the selected project's destination category for duplicate order values;
 never silently renumber other vehicles to resolve a collision.
 
@@ -288,7 +377,7 @@ protocols because the website renders this HTML with Astro's `set:html`.
 - `renumberImages()`, `renderImages()`, and `renderBlocks()` keep UI state and output
   names synchronized.
 - `updateSummary()` derives the canonical URL and output tree preview.
-- `validate()` checks editor completeness for export and save preparation.
+- `validate()` checks editor completeness for export and review preparation.
 - `sanitizeHtml()` protects HTML consumed by `set:html`.
 - `createRecord()` is the central JSON serializer.
 - `createAstro()` owns the generated route wrapper.
@@ -297,16 +386,17 @@ protocols because the website renders this HTML with Astro's `set:html`.
   CRC-32 values.
 - `generate()` assigns automatic ordering, assembles entries, creates the ZIP Blob,
   and triggers the local download.
-- `editorSnapshot()` validates and captures the record and images for checked saving.
+- `editorSnapshot()` validates and captures the record and images for ZIP preparation.
 - `resetEditor()` clears vehicle-specific state while the workflow retains its
   selected project and category filter.
 
 `VehicleProjectAccess` owns project discovery and filesystem snapshots.
 `VehicleProjectSave.prepare()` validates a proposed change without writing;
-`apply()` creates the backup and commits it; `readJournal()` and `restore()` handle
-interrupted saves. `VehicleProjectUI` coordinates these with the editor through its
+`apply()` remains a historical transaction implementation, never a new authoring
+action; `readJournal()` and `restore()` handle interrupted historical saves.
+`VehicleProjectUI` coordinates read-only preparation and recovery with the editor through its
 explicit adapter. Keep busy state, navigation availability, draft fingerprints,
-review invalidation, and the post-save baseline synchronized.
+review invalidation and export validation synchronized.
 
 When changing images or blocks, keep state mutation, rerendering, summary updates,
 lead-image validity, gallery selections, and object-URL cleanup synchronized.
@@ -343,8 +433,8 @@ test hooks belong in the deliverable. Test the actual `file://` entry point and
 native permission prompts in Chrome/Edge on Mac and Windows when available.
 Document unavailable checks rather than claiming them.
 
-For functional changes, verify a complete save on a disposable project and a ZIP
-export. Use the actual `file://` entry point where the browser environment permits
+For functional changes, verify ZIP export and confirm review/export do not write
+to the disposable project. Use the actual `file://` entry point where the browser environment permits
 it; the harness does not establish native folder-picker or permission compatibility.
 Verify at least:
 
@@ -363,13 +453,25 @@ Verify at least:
 12. Keyboard focus remains visible and all non-drag alternatives work.
 13. Full-project selection rejects subfolders and malformed page/folder pairs;
     vehicle titles, dates, category filtering, and new-vehicle reset work correctly.
-14. Incomplete data cannot be saved; changing inputs invalidates the reviewed change.
-15. New saves, replacements, and category moves match the checked importer's file
-    output, including bilingual sitemap entries and pagination boundaries.
+14. Incomplete data cannot be exported; changing inputs invalidates the reviewed change.
+15. ZIP exports contain the correct vehicle pair and preserved bilingual content;
+    the guided transfer handles crawler sync and bilingual category redirects.
 16. Stale project snapshots, destination collisions, duplicate orders, denied access,
     and foreign locks block writes without discarding the draft.
 17. Failed writes restore originals; interrupted recovery retains its journal;
     conflicting external edits and damaged backups stop restoration safely.
+
+For transfer or preview changes, use a disposable website copy and actual exported
+ZIPs. Run all four transfer cases with `npm run dev` already running: new vehicle,
+category-only move, content-only edit, and content plus category edit. Use computer
+use to verify German and English archives/detail pages, replaced images, galleries
+and old-route redirects. Check extraction suffixes and escaped spaces, explicit
+original selection, cancellation, stale reviews and collisions. Confirm that no
+extra browser page opens and logs remain short. Verify post-commit preview failure
+reports saved source correctly, interrupted locks block preview, and startup can
+repair derived assets without removing locks. Document unavailable native platform
+checks; browser harness results do not establish Windows or native folder-picker
+compatibility.
 
 When generated data, ordering, project writes, redirects, or crawler handling change,
 also verify the website. These are developer checks, not editor runtime requirements:
@@ -417,11 +519,14 @@ dates, safe integer orders and ZIP counts/sizes/offsets. Export an immutable sna
 Keep keyboard formatting, selection restoration, focus after moves/removal and
 handle-only dragging working together.
 
-The website's `vehicles:review` check/apply workflow owns CLI imports. The browser
-checked-save path implements compatible destination checks, backups, category
-redirects and crawler updates; keep their fixture outputs aligned. Never instruct users to extract over
-existing source files. Existing-vehicle replacement still needs an explicit original
-route and authorization. Run the website's cross-project contract, importer and
+The website's `vehicles:transfer` workflow wraps the checked importer; the advanced
+`vehicles:review` check/apply workflow uses the same import contract. Browser
+preparation and historical transaction recovery retain compatible destination
+checks, backups, category redirects and crawler behavior; keep fixture outputs
+aligned without restoring direct-save UI. Never instruct users to extract over
+existing source files. Existing-vehicle replacement still needs an exact original
+route and authorization; the guided CLI obtains these through numbered selection
+and confirmation. Run the website's cross-project contract, importer and
 browser fixtures after contract changes. Its test harness may instrument a temporary
 copy, but never add test hooks, network requests or dependencies to this deliverable.
 Follow the current user's approval scope; summarize implemented edits rather than
@@ -436,13 +541,18 @@ metadata. German fields retain their original names; English uses `titleEn`,
 Required text must be present in both languages. Captions are either present in both
 or omitted in both. Preserve gallery occurrence metadata independently of pool defaults.
 
-The explicit legacy-import checkbox allows old German-only records into the editor,
-leaving English empty. Direct save, ZIP export, and website import require complete bilingual
-records. Never silently generate English by copying German. Preserve imported HTML
+Editor import, ZIP export, and website import require complete bilingual
+records. German-only records must be translated before importing. Never silently
+generate English by copying German. Preserve imported HTML
 when unchanged, validate/sanitize both languages, and keep rich-text selections scoped
 to each editor. Do not duplicate image bytes or create separate English ZIP folders.
 
-## Browser checked saving
+## Historical browser transaction recovery
+
+The direct-save UI is removed. Keep the transaction library only for read-only
+preparation and recovery of historical journals; test transaction compatibility in
+isolated fixtures, never reintroduce new project writes into the authoring flow.
+
 
 Read selected project scripts as data only; never evaluate them. Fail closed if the
 restricted modification-date configuration or expected project structure changes.
@@ -487,4 +597,4 @@ first block. The review preview uses local object URLs and sanitized content in 
 sandboxed, offline frame; desktop/tablet/mobile sizes and both languages can be
 reviewed without changing the draft. It simplifies website fonts and chrome.
 Gallery splitting retains image order and occurrence metadata, invalidates any
-prepared save and focuses the new gallery. It does not itself insert a text block.
+prepared review and focuses the new gallery. It does not itself insert a text block.
