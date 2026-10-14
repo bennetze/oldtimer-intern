@@ -363,6 +363,34 @@ aktuelle-projekte/
             </details>
           </div>
         </section>
+        <section class="panel website-tools" id="website-tools" aria-labelledby="tools-title" hidden>
+          <div class="panel__head"><h2 id="tools-title">Website aktualisieren</h2></div>
+          <div class="panel__body">
+            <p class="hint" id="tools-project"></p>
+            <ol class="website-tools__flow">
+              <li><h3>1. Fahrzeug speichern</h3><p>Der aktuelle Entwurf wird automatisch geprüft und nach Ihrer Bestätigung im richtigen Fahrzeugordner gespeichert. Eine Sicherung bleibt erhalten.</p><button class="btn btn--primary" id="tools-transfer" type="button" disabled>Im Projekt speichern</button><p class="hint" id="tools-export-hint">Bitte alle Pflichtangaben vervollständigen.</p></li>
+              <li><h3>2. Website ansehen</h3><p>Die Vorschau zeigt die übernommenen Quelldateien. Nach der Übernahme die Browserseite neu laden.</p><div class="website-tools__buttons"><button class="btn btn--secondary" id="tools-preview-start" type="button" disabled>Website-Vorschau starten</button><button class="btn btn--secondary" id="tools-preview-stop" type="button" hidden>Vorschau stoppen</button><a class="btn btn--secondary" id="tools-preview-link" target="_blank" rel="noreferrer" hidden>Website-Vorschau öffnen ↗</a></div></li>
+              <li><h3>3. Website bereitstellen</h3><p>Die Vorschau vor dem Erstellen stoppen. „Website erstellen“ erzeugt die Produktionsdateien in <code>dist/</code>. Die Veröffentlichung für GitHub Pages erstellt und veröffentlicht separat.</p><div class="website-tools__buttons"><button class="btn btn--secondary" id="tools-build" type="button" disabled>Website erstellen</button><button class="btn btn--secondary" id="tools-deploy" type="button" disabled>GitHub Pages veröffentlichen</button></div><p class="hint">Die Veröffentlichung für GitHub Pages aktualisiert nicht den Produktionshost.</p></li>
+            </ol>
+            <div class="website-tools__activity" aria-labelledby="tools-activity-title">
+              <p id="tools-status" role="status" aria-live="polite">Verbindung wird geprüft …</p>
+              <h3 id="tools-activity-title" tabindex="-1">Nächster Schritt</h3>
+              <p id="tools-hint">Speichern prüft den aktuellen Entwurf. Original, Ziel und Bestätigung erscheinen hier.</p>
+              <p id="tools-message" role="alert" hidden></p>
+              <form id="tools-prompt" hidden>
+                <fieldset id="tools-choices" hidden><legend>Genaues Fahrzeug auswählen</legend><div id="tools-choice-list"></div></fieldset>
+                <div id="tools-text-answer"><label id="tools-answer-label" for="tools-answer"></label><input id="tools-answer" autocomplete="off"></div>
+                <div class="website-tools__buttons"><button class="btn btn--primary" id="tools-submit" type="submit">Weiter</button><button class="btn btn--secondary" id="tools-cancel" type="button">Abbrechen</button></div>
+              </form>
+              <p id="tools-upload-progress" role="status" hidden></p>
+              <details id="tools-task-detail" hidden><summary>Verlauf der Aktion und Sicherung</summary><pre id="tools-task-log" tabindex="0"></pre></details>
+              <details id="tools-preview-detail" hidden><summary>Vorschau-Meldungen</summary><pre id="tools-preview-log" tabindex="0"></pre></details>
+              <button class="btn btn--secondary" id="tools-refresh" type="button" hidden>Fahrzeugliste aktualisieren</button>
+            </div>
+            <details class="website-tools__maintenance"><summary>Weitere Projektaktionen</summary><p>Ein Fahrzeug aus diesem Website-Projekt entfernen. Die genaue Route wird vor der Bestätigung angezeigt; eine Sicherung bleibt erhalten.</p><button class="btn btn--secondary" id="tools-delete" type="button" disabled>Fahrzeug zum Löschen suchen</button></details>
+            <p class="hint">Alle Fahrzeugänderungen bleiben zunächst lokal. Zum Beenden das Startfenster mit Strg+C schließen.</p>
+          </div>
+        </section>
       </aside>
 
       <div class="step-actions" aria-label="Schrittnavigation">
@@ -386,6 +414,7 @@ aktuelle-projekte/
     <script src="project-access.js"></script>
     <script src="project-save.js"></script>
     <script src="project-ui.js"></script>
+    <script src="website-tools.js"></script>
     <script src="editor.js"></script>
   </body>
 </html>

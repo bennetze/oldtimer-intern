@@ -5,6 +5,8 @@ window.VehicleProjectUI = function (api) {
   const $ = selector => document.querySelector(selector);
   let project = null, selected = false, from = null, baseline = "", review = null, reviewFingerprint = "", busy = false, recoveryRoot = null;
   let recoveryBlocksCurrent = false;
+  let toolsStale = false;
+  let transferFingerprint = '';
   const fileIds = new WeakMap(); let nextFile = 0;
   const fileId = file => { if (!file) return null; if (!fileIds.has(file)) fileIds.set(file, ++nextFile); return fileIds.get(file); };
   function fingerprint() {
@@ -18,6 +20,7 @@ window.VehicleProjectUI = function (api) {
     $('#save-review').textContent = 'Die Eingaben wurden geändert. Die ZIP-Ausgabe prüft sie erneut.';
   }
   function clearReview() {
+    transferFingerprint = '';
     review = null; reviewFingerprint = '';
     $('#save-review').dataset.reviewState = 'idle';
     feedback($('#save-review'), 'Noch nicht geprüft.');
@@ -44,6 +47,7 @@ window.VehicleProjectUI = function (api) {
     const index = steps.indexOf(api.state.currentStep);
     $('#step-next').disabled = !canOpen(steps[index + 1]);
     $('#step-back').disabled = index === 0 || !canOpen(steps[index - 1]);
+    window.VehicleWebsiteTools?.contextChanged();
   }
   function setBusy(value) {
     busy = value; api.setBusy(value);
@@ -90,7 +94,8 @@ window.VehicleProjectUI = function (api) {
     }
     const next = await A.inspect(root, api.validateRecord);
     S.parseDates(await A.text(root, 'src/config/modificationDates.js'));
-    project = next; recoveryRoot = null; selected = false; from = null; clearReview();
+    await window.VehicleWebsiteTools?.verifyProject(root, next.baseline);
+    project = next; recoveryRoot = null; selected = false; from = null; toolsStale = false; clearReview();
     recoveryBlocksCurrent = false;
     $('#recover-project').hidden = true; $('#project-name').textContent = `Verbunden: ${root.name}`;
     feedback($('#project-feedback'), 'Projektordner erfolgreich geprüft.');
@@ -145,8 +150,8 @@ window.VehicleProjectUI = function (api) {
     root.append(summary);
     root.dataset.reviewState = 'ready';
     root.classList.remove('feedback-error'); root.setAttribute('role', 'status');
-    const notice = document.createElement('p'); notice.textContent = value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
-    $('#transfer-command').textContent = 'npm run vehicles:transfer';
+    const notice = document.createElement('p'); notice.textContent = window.VehicleWebsiteTools ? 'Die Prüfung verändert keine Projektdateien. „Im Projekt speichern“ bereitet den aktuellen Entwurf automatisch vor. Original und Ziel werden vor der Bestätigung angezeigt. Erst JA speichert die geprüften Dateien mit Sicherung. Vorschau, Erstellen und Veröffentlichen bleiben separate Schritte.' : value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
+    if ($('#transfer-command')) $('#transfer-command').textContent = 'npm run vehicles:transfer';
   }
   async function prepareExport(snapshot) {
     if (!project || !selected || recoveryBlocksCurrent) throw new Error('Bitte zuerst einen gültigen Projektordner und ein Fahrzeug auswählen.');
@@ -170,7 +175,27 @@ window.VehicleProjectUI = function (api) {
     api.updateSummary();
     await prepareExport(snapshot);
   }, $('#save-review')));
-  window.addEventListener('beforeunload', event => { if (dirty() || busy) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', event => { if (dirty() || busy || api.state.busy) { event.preventDefault(); event.returnValue = ''; } });
   if (!window.showDirectoryPicker || !window.isSecureContext) feedback($('#project-feedback'), 'Bitte index.html in Chrome oder Edge auf einem Computer öffnen. Der benötigte Ordnerzugriff ist hier nicht verfügbar.', true);
-  return { canOpen, update, invalidateReview, prepareExport };
+  const websiteTools = {
+    context: () => ({ ready: !!project && selected && !recoveryBlocksCurrent, busy: api.state.busy, stale: toolsStale, valid: api.validate().errors.length === 0 }),
+    async prepareTransfer() {
+      if (toolsStale) throw new Error('Bitte zuerst die Fahrzeugliste aktualisieren.');
+      const snapshot = api.editorSnapshot();
+      api.updateSummary();
+      const checked = await prepareExport(snapshot);
+      transferFingerprint = fingerprint();
+      return { snapshot, from: checked.from || null, project: { name: project.root.name, snapshot: project.baseline }, page: api.createAstro(snapshot.record.category, snapshot.record.slug) };
+    },
+    setBusy(value) { api.setBusy(value, { websiteTools: true }); },
+    changed(name) {
+      invalidateReview(); toolsStale = true;
+      if (name === 'transfer' && transferFingerprint === fingerprint()) baseline = fingerprint();
+      $('#save-review').dataset.reviewState = 'stale';
+      feedback($('#save-review'), name === 'transfer' ? 'Fahrzeug im Projekt gespeichert. Die Website-Vorschau zeigt die gespeicherten Dateien. Vor weiteren Änderungen bitte die Fahrzeugliste aktualisieren.' : 'Das Website-Projekt wurde geändert. Der Entwurf bleibt erhalten; bitte vor weiteren Änderungen die Fahrzeugliste aktualisieren.');
+      update();
+    },
+    refresh() { $('#refresh-project').click(); },
+  };
+  return { canOpen, update, invalidateReview, prepareExport, websiteTools };
 };

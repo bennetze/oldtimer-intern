@@ -132,6 +132,28 @@ vehicle. Transfer refreshes preview assets, not `dist`, and never builds or publ
 GitHub Pages build when required. These commands belong to the website repository,
 never this offline editor.
 
+## Guided vehicle deletion
+
+Deletion belongs to the website CLI, not ZIP export or the editor's authoring UI.
+From the website root, run `npm run vehicles:delete` without arguments. Enter a
+search term (Enter lists all), select the numbered vehicle by title/category/exact
+route and confirm with `JA`. Invalid or zero selections and other confirmation
+answers cancel. Keep logs short and German; never open an extra browser page.
+
+The command uses an immutable deletion review and the shared checked import
+transaction: stale-input checks, exclusive import lock, verified backups and
+rollback. It removes the exact page/folder pair and redirects targeting the car,
+updates both languages' sitemap and affected archive pagination/llms links, then
+refreshes gallery assets and the supervised development preview. Retired car URLs
+return 404; do not invent a redirect target. Preserve unrelated vehicles and prose.
+Show the backup path. If preview refresh fails after deletion committed, clearly
+report that the car is deleted and keep the backup. Build/publish separately and
+refresh the editor's vehicle list. No ZIP, manual file deletion, separate sync or
+gallery command is needed. Tests must use disposable projects, never real cars.
+The website implementation is `scripts/delete-vehicle.mjs`,
+`scripts/lib/vehicle-delete.mjs` and the deletion review/apply functions in
+`scripts/lib/vehicle-import.mjs`; regressions are in `tests/vehicle-delete.test.mjs`.
+
 ## Related website repository and source of truth
 
 The generated files are consumed by the sibling website repository:

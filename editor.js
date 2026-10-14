@@ -46,6 +46,7 @@
         ]);
         // Native file-button captions follow the browser language, not the page language.
         for (const input of $$('input[type="file"]')) {
+          if (input.closest("#website-tools")) continue;
           const wrapper = document.createElement("div"); wrapper.className = "file-control";
           const label = document.createElement("label"); label.className = "btn btn--small"; label.htmlFor = input.id;
           label.textContent = input.hasAttribute("webkitdirectory") ? "Ordner auswählen" : input.multiple ? "Dateien auswählen" : "Datei auswählen";
@@ -191,8 +192,8 @@
           pendingChange = true;
           queueMicrotask(() => { pendingChange = false; refreshGalleryDefaults(); updateSummary(); });
         }
-        document.addEventListener("input", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
-        document.addEventListener("change", (event) => { if (!event.target.closest("#page-preview-dialog")) notifyChange(true); });
+        document.addEventListener("input", (event) => { if (!event.target.closest("#page-preview-dialog, #website-tools")) notifyChange(true); });
+        document.addEventListener("change", (event) => { if (!event.target.closest("#page-preview-dialog, #website-tools")) notifyChange(true); });
         function autoAltEn() {
           return "";
         }
@@ -329,7 +330,7 @@
           review.className = `review-state ${total ? "is-incomplete" : "is-ready"}`;
           review.textContent = total
             ? `${total} ${total === 1 ? "Angabe fehlt" : "Angaben fehlen"}. Sie können jeden Schritt direkt öffnen.`
-            : "Alle Pflichtangaben sind vollständig. Die Änderungen können geprüft und als ZIP exportiert werden.";
+            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Die Änderungen können geprüft und als ZIP exportiert werden.";
         }
 
         function showStep(name, { focus = false } = {}) {
@@ -378,10 +379,11 @@
         }
         function validDate(value) { return validVehicleDate(value); }
         function cardName() { return state.cardName || (state.cardFile ? `card.${extensionFor(state.cardFile)}` : ""); }
-        function setBusy(value) {
+        function setBusy(value, { websiteTools = false } = {}) {
           state.busy = value;
           $("form").inert = value;
-          $(".sidebar").inert = value;
+          $(".sidebar").inert = value && !websiteTools;
+          $(".review-panel").inert = value;
           $("#start-screen").inert = value;
           $("#generate").disabled = value;
           $("form").setAttribute("aria-busy", String(value));
@@ -1387,7 +1389,7 @@
             ]);
           } finally {
             setBusy(false);
-            button.textContent = "ZIP erstellen";
+            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "ZIP erstellen";
           }
         }
 
@@ -1705,6 +1707,7 @@
           return { record, recordText, images };
         }
         workflow = window.VehicleProjectUI({ state, fields, showStep, showEditor, resetEditor, importVehicle, validateRecord, checkImage, createAstro, editorSnapshot, updateSummary, validate, setBusy });
+        window.VehicleWebsiteTools?.attach(workflow?.websiteTools);
         showStep("project");
         updateSummary();
       })();

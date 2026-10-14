@@ -3,14 +3,16 @@
 See the [step-by-step user guide](USER-GUIDE.md) for adding cars, changing categories,
 editing content, and combining edits with a category move.
 
-1. Alle Dateien zusammenlassen. `index.html` in einer aktuellen Desktop-Version von Chrome oder Edge öffnen (macOS oder Windows).
+1. Alle Editor-Dateien zusammenlassen und `oldtimer` sowie `oldtimer-intern` nebeneinander ablegen. Im Website-Ordner `Website-Werkzeuge.command` (macOS), `Website-Werkzeuge.cmd` (Windows) oder `Website-Werkzeuge.sh` (Linux) starten. Das öffnet diesen Editor mit integrierten Website-Aktionen. Alternativ `index.html` direkt in Chrome oder Edge für den Offline-ZIP-Workflow öffnen.
 2. Den vollständigen Website-Projektordner auswählen. Der Editor liest dessen Fahrzeuge und prüft die Ausgabe gegen dieses Projekt.
 3. Ein Fahrzeug öffnen oder **Neues Fahrzeug** wählen. Deutsche und englische Texte sowie Bildbeschreibungen vollständig ausfüllen. Neue Galeriebeschreibungen starten leer und müssen die sichtbare Aufnahme beschreiben.
-4. Unter **Prüfen & exportieren** die Vorschau ansehen und **ZIP erstellen** wählen. Die Ausgabe prüft automatisch Pflichtfelder, lokale Bilder, Zielroute und Sortierwert; **Änderungen prüfen** erlaubt dieselbe Prüfung vorab.
-5. Die ZIP außerhalb des Website-Ordners entpacken. Im Terminal den Website-Ordner öffnen und `npm run vehicles:transfer` ausführen. Den entpackten Ordner bei der Aufforderung ins Terminal ziehen und Eingabetaste drücken. Bei einem bestehenden Fahrzeug dessen angezeigte Nummer auswählen. Alle Änderungen prüfen und mit `JA` bestätigen. Der Befehl übernimmt Dateien mit Sicherung, entfernt bei Kategoriewechseln das alte Paar und aktualisiert Weiterleitungen, Sitemap und vorhandene llms.txt-Verweise. Nicht selbst kopieren oder löschen.
-6. Anschließend `npm run build` ausführen, für die GitHub-Pages-Vorschau `npm run build:pages`. Die Website separat veröffentlichen. Ein zusätzlicher `vehicles:sync`-Aufruf ist bei dieser Übernahme nicht nötig.
+4. Im gestarteten Editor unter **Prüfen & speichern** die Fahrzeugvorschau ansehen. **Im Projekt speichern** bereitet den aktuellen Entwurf automatisch vor. Original und Ziel prüfen und mit `JA` bestätigen. Der Entwurf wird an der richtigen Stelle im Website-Projekt gespeichert; eine Sicherung bleibt erhalten. Kein ZIP-Download, Entpacken oder erneuter Ordnerimport ist nötig.
+5. **Website-Vorschau starten** und **Website-Vorschau öffnen** wählen. Eine laufende Vorschau wird nach dem Speichern automatisch neu gestartet; die Browserseite anschließend neu laden. Vor weiteren Fahrzeugänderungen **Fahrzeugliste aktualisieren** wählen.
+6. Bei Bedarf die Vorschau stoppen und **Website erstellen** wählen. **GitHub Pages veröffentlichen** ist eine separate, bestätigte Aktion und aktualisiert nur GitHub Pages. Den Produktionshost separat veröffentlichen.
 
-Der Editor erstellt eine lokale ZIP. Er schreibt keine Fahrzeugdateien ins Projekt, aktualisiert keine Sitemap, startet keine Programme und veröffentlicht nichts. Eine erzeugte ZIP enthält Website-Quelldateien; `dist` wird erst durch den separaten Build aktualisiert.
+**ZIP herunterladen (optional)** bleibt zur Weitergabe verfügbar. Beim direkten Offline-Start von `index.html` heißt der letzte Schritt weiterhin **Prüfen & exportieren**: ZIP außerhalb des Projekts entpacken und mit dem bestehenden `npm run vehicles:transfer`-Assistenten übernehmen.
+
+Prüfung und optionale ZIP-Erstellung verändern keine Projektdateien. Beim direkten Öffnen von `index.html` startet der Editor keine Programme. Über das Startprogramm führt der letzte Schritt zusätzlich ausdrücklich bestätigte Website-Übernahme/Löschung sowie separate Vorschau-, Build- und Veröffentlichungsaktionen aus. Diese verwenden die Website-Werkzeuge mit Sperren, Sicherungen und erneuter Prüfung. Eine erzeugte ZIP enthält Website-Quelldateien; `dist` wird erst durch den separaten Build aktualisiert.
 
 Der Übernahme-Befehl zeigt kurze deutsche Statusmeldungen und fragt vor dem Speichern nach einer Bestätigung (JA). Es öffnet sich keine zusätzliche Seite. Nach dem Speichern erstellt der Befehl die Vorschaubilder. Eine mit `npm run dev` gestartete Vorschau pausiert während der Übernahme und startet anschließend automatisch mit den neuen Fahrzeugen, Bildern und beiden Sprachen neu. Danach die Browserseite neu laden. Eine neue Vorschau mit `npm run dev` starten und mit Strg+C beenden. Wenn das Fahrzeug gespeichert wurde, aber die Vorschauvorbereitung fehlschlägt, nennt der Befehl diesen Unterschied ausdrücklich und behält die Sicherung.
 
@@ -18,9 +20,23 @@ Die Übernahme verwendet den geprüften Website-Importer. Vorhandene Fahrzeuge w
 
 Nach der Übernahme die Projektliste neu laden, bevor weitere Fahrzeuge exportiert werden. Externe Projektänderungen machen die vorherige Projektprüfung ungültig. Beim Schließen gehen nicht exportierte Entwürfe verloren; ungespeicherte Änderungen werden vor dem Wechsel abgefragt.
 
+## Fahrzeug löschen
+
+Im integrierten Editor unter **Website aktualisieren → Weitere Projektaktionen**
+**Fahrzeug zum Löschen suchen** wählen. Alternativ im Website-Ordner
+`npm run vehicles:delete` ausführen. Suchbegriff eingeben
+(Enter zeigt alle Fahrzeuge), die Nummer des richtigen Fahrzeugs auswählen und
+mit `JA` bestätigen. `0` bricht ab. Eine ZIP ist nicht nötig.
+
+Der Befehl entfernt das Fahrzeug mit Sicherung, aktualisiert Sitemap, betroffene
+Links und Vorschaubilder und entfernt Weiterleitungen auf das gelöschte Fahrzeug.
+Den angezeigten Sicherungsordner behalten. Danach die Browserseite und die
+Fahrzeugliste im Editor neu laden. Bauen und Veröffentlichen bleiben separate
+Schritte; erst danach verschwindet das Fahrzeug auch von der veröffentlichten Website.
+
 ## Frühere Speichervorgänge
 
-Die direkte Speicherfunktion wurde entfernt. Vorhandene Journale und Sicherungen früherer Versionen bleiben geschützt. Bei einem unterbrochenen Vorgang kann die bestehende Wiederherstellungsfunktion weiterhin Originaldateien zurücksetzen oder einen abgeschlossenen Vorgang entsperren. Konflikte, beschädigte Sicherungen und fremde Importsperren erfordern eine manuelle Prüfung; Sperren nicht einfach löschen.
+Die frühere direkte Browserschreibfunktion wurde entfernt. Das neue **Im Projekt speichern** verwendet den geprüften Website-Importer im Startprogramm. Vorhandene Journale und Sicherungen früherer Versionen bleiben geschützt. Bei einem unterbrochenen Vorgang kann die bestehende Wiederherstellungsfunktion weiterhin Originaldateien zurücksetzen oder einen abgeschlossenen Vorgang entsperren. Konflikte, beschädigte Sicherungen und fremde Importsperren erfordern eine manuelle Prüfung; Sperren nicht einfach löschen.
 
 ZIP-Ausgaben verwenden die geprüften Grenzen: 2 MiB JSON, 50 MiB und 100 Megapixel je Bild, 2000 Fahrzeugdateien und 512 MiB Fahrzeugdaten insgesamt. Die Website-Buildprüfung bleibt die abschließende Kompatibilitätsprüfung.
 
@@ -48,10 +64,10 @@ vehicle JSON and page/folder contract.
 
 ## Developer verification
 
-Run `node --check` on the four deliverable JavaScript files. Run the contract,
+Run `node --check` on all deliverable JavaScript files, including `website-tools.js`. Run the contract,
 import and save tests described in AGENTS.md from the sibling website repository.
 For the extended editor checks, run `node scripts/test-editor-browser.mjs` here,
-then open `http://127.0.0.1:8767/` and `http://127.0.0.1:8767/workflow` in a browser.
+then open `/`, `/workflow`, and `/tools-workflow` at `http://127.0.0.1:8767` in a browser.
 Use `PORT` to select another local port and `VEHICLE_WEBSITE_PATH` if the sibling
 website checkout is elsewhere. This developer-only harness reuses the website's
 installed test dependencies and injects the additional cases into temporary

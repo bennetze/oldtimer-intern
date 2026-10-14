@@ -65,3 +65,35 @@ body { padding-top: 0; }
 #preview-stage { width: 100%; overflow: hidden; background: #eee; margin-top: 16px; }
 #page-preview-frame { display: block; height: 720px; border: 0; transform-origin: top left; margin-inline: auto; }
 @media (max-width: 550px) { #page-preview-dialog { padding: 12px; } .preview-toolbar { gap: 10px; } }
+
+/* Website operations continue the final step when opened by the local launcher. */
+.website-tools .panel__body { display: grid; gap: 20px; }
+.website-tools h3 { margin: 0 0 10px; font-size: 17px; line-height: 1.4; }
+.website-tools p { margin: 0 0 14px; }
+.website-tools .hint { font-size: 12px; }
+#tools-project { overflow-wrap: anywhere; }
+.website-tools__flow { list-style: none; padding: 0; margin: 0; }
+.website-tools__flow > li { padding: 22px 0; border-top: 1px solid #ddd; }
+.website-tools__save { list-style: none; padding: 20px 0; border-top: 1px solid #ddd; }
+.website-tools__save h3 { margin: 0 0 10px; font-size: 17px; }
+.website-tools__save .hint { font-size: 12px; margin-top: 10px; }
+.website-tools__save .btn { width: 100%; min-height: 44px; }
+.website-tools__buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.website-tools .btn { min-height: 44px; max-width: 100%; white-space: normal; text-align: center; }
+.website-tools__activity { border-top: 2px solid #222; padding-top: 20px; min-width: 0; }
+#tools-status { font-size: 12px; font-weight: 700; }
+#tools-message { padding: 12px; color: #9a2424; border-left: 3px solid currentColor; overflow-wrap: anywhere; }
+.website-tools fieldset { min-width: 0; border: 0; padding: 0; margin: 0 0 18px; }
+.website-tools legend, #tools-answer-label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+#tools-answer { width: 100%; padding: 12px; margin-bottom: 16px; border: 1px solid #999; border-radius: 4px; }
+.website-tools__choice { display: flex; align-items: start; gap: 12px; padding: 14px 0; border-top: 1px solid #ddd; cursor: pointer; }
+.website-tools__choice input { flex-shrink: 0; margin: 5px 0 0; }
+.website-tools__choice span { min-width: 0; overflow-wrap: anywhere; }
+.website-tools details { border-top: 1px solid #ddd; padding-top: 16px; margin-top: 20px; }
+.website-tools summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.website-tools pre { font-size: 12px; line-height: 1.6; max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.website-tools__maintenance p { margin-top: 16px; }
+.website-tools :focus-visible { outline: 3px solid #555; outline-offset: 3px; }
+.website-tools-recovery { width: min(780px, 94vw); max-height: 90vh; overflow: auto; padding: 0; border: 1px solid #999; background: #fff; }
+.website-tools-recovery::backdrop { background: rgba(0, 0, 0, .6); }
+.website-tools-recovery .website-tools { border: 0; margin: 0; }
