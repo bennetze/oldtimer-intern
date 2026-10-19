@@ -10,6 +10,7 @@
           currentStep: "vehicle",
           cardFile: null,
           cardName: "",
+          watermarkEnabled: false,
           original: null,
           busy: false,
           cardUrl: "",
@@ -38,6 +39,20 @@
           leadAlt: $("#lead-alt"),
         };
 
+        const presentation = window.VehiclePresentation;
+        if (!presentation) {
+          $("#project-feedback").textContent = "vehicle-presentation.js fehlt. Bitte alle Editor-Dateien zusammenlassen und die Seite neu laden.";
+          $("#choose-project").disabled = true;
+          return;
+        }
+        const textColors = presentation.colors;
+        const colorLabels = presentation.labels;
+        const imageDimensions = new WeakMap();
+        const checkedImages = new WeakMap();
+        const removedBlocks = [];
+        let lastEditorBlockId = "";
+        const colorCss = Object.entries(textColors).map(([name, color]) => `.om-color-${name}{color:${color}}`).join("");
+        const colorStyle = document.createElement("style"); colorStyle.textContent = `@font-face{font-family:Lora;src:url('${presentation.fontDataUrl}') format('truetype');font-weight:400 700;font-style:normal;font-display:swap}${colorCss}`; document.head.append(colorStyle);
         const acceptedTypes = new Set([
           "image/jpeg",
           "image/png",
@@ -52,7 +67,7 @@
           label.textContent = input.hasAttribute("webkitdirectory") ? "Ordner auswählen" : input.multiple ? "Dateien auswählen" : "Datei auswählen";
           const summary = document.createElement("span"); summary.className = "hint";
           summary.textContent = "Noch keine Datei ausgewählt.";
-          summary.setAttribute("role", "status");
+          summary.setAttribute("role", "status"); summary.dataset.fileSummary = input.id;
           input.before(wrapper); wrapper.append(input, label, summary);
           input.addEventListener("change", () => {
             const files = [...input.files];
@@ -112,10 +127,16 @@
               text(block.htmlEn, `Block ${index + 1} Englisch`);
               checkHtml(block.htmlEn, `Block ${index + 1} Englisch`);
             } else if (block?.type === 'gallery') {
-              object(block, ['type', 'images'], `Block ${index + 1}`);
+              object(block, ['type', 'images', 'textSide', 'html', 'htmlEn'], `Block ${index + 1}`);
+              if (block.textSide !== undefined) {
+                if (!['left', 'right'].includes(block.textSide) || block.images?.length !== 1) fail('Text neben Bild benötigt genau ein Bild und eine gültige Textseite.');
+                text(block.html, 'Deutsch'); text(block.htmlEn, 'Englisch');
+                checkHtml(block.html, 'Deutsch'); checkHtml(block.htmlEn, 'Englisch');
+              } else if (block.html !== undefined || block.htmlEn !== undefined) fail('Textseite fehlt.');
               if (!Array.isArray(block.images) || !block.images.length) fail(`Galerie ${index + 1} ist leer.`);
               for (const item of block.images) {
-                object(item, ['src', 'alt', 'caption', 'altEn', 'captionEn'], `Galerie ${index + 1}`);
+                object(item, ['src', 'alt', 'caption', 'altEn', 'captionEn', 'size'], `Galerie ${index + 1}`);
+                if (item.size !== undefined && !['small', 'medium', 'large'].includes(item.size)) fail('Ungültige Bildgröße.');
                 image(item.src); alternative(item.alt, `Gallery ${index + 1}: ${item.src}: German alternative text`);
                 alternative(item.altEn, `Gallery ${index + 1}: ${item.src}: English alternative text`);
                 if (item.caption !== undefined && typeof item.caption !== 'string') fail('Die Bildunterschrift muss Text sein.');
@@ -173,6 +194,21 @@
           fields[`${key}En`] = pairControl(fields[key], "", label);
           if (key.endsWith("Alt")) fields[`${key}En`].addEventListener("input", () => { fields[`${key}En`].dataset.touched = "true"; });
         }
+        const englishCounter = document.createElement("p"); englishCounter.className = "hint";
+        englishCounter.innerHTML = '<span id="description-count-en">0</span>/500 Zeichen';
+        fields.descriptionEn.after(englishCounter);
+        for (const [field, counter] of [[fields.description, "description-count"], [fields.descriptionEn, "description-count-en"]]) {
+          field.setAttribute("aria-describedby", counter);
+          $("#" + counter).setAttribute("aria-label", field.dataset.fieldLabel + ": Zeichenanzahl");
+        }
+        const undoRow = document.createElement("div"); undoRow.id = "block-undo"; undoRow.hidden = true;
+        undoRow.innerHTML = '<button type="button" class="btn btn--small" id="restore-block">Letzten Block wiederherstellen</button><span class="hint" id="undo-count"></span>';
+        $("#block-list").before(undoRow);
+        const structuralStatus = document.createElement("p"); structuralStatus.className = "sr-only"; structuralStatus.setAttribute("role", "status");
+        $("#block-list").before(structuralStatus);
+        $("#restore-block").addEventListener("click", restoreRemovedBlock);
+        const quality = document.createElement("div"); quality.id = "image-quality"; quality.className = "hint";
+        $("#review-state").after(quality);
         const technical = $("#technical-details");
         $(".advanced__body", technical).prepend(fields.slug.closest(".field"), fields.sourceUrl.closest(".field"));
         const importFilesDetails = $("#import-files").closest("details");
@@ -215,9 +251,19 @@
                 pairControl($(`[data-entry-alt="${index}"]`, article), meta.altEn || "", "Alternativtext des Galeriebilds");
                 pairControl($(`[data-entry-caption="${index}"]`, article), meta.captionEn || "", "Galerie-Bildunterschrift (optional)", false);
               });
-              continue;
+              if (!block.textSide) continue;
             }
             const editor = $("[data-editor]", article);
+            if (editor.closest(".language-pair--editors")) {
+              for (const field of $$("[data-editor]", article)) {
+                const english = field.dataset.language === "en";
+                const html = block[english ? "htmlEn" : "html"] || "";
+                if (sanitizeHtml(field.innerHTML) !== sanitizeHtml(html)) field.innerHTML = editableHtml(html);
+                field.dataset.fieldLabel = `${block.textSide ? "Text neben Bild" : blockLabel(block.type)} ${state.blocks.indexOf(block) + 1} · ${english ? "Englisch" : "Deutsch"}`;
+                field.setAttribute("aria-label", field.dataset.fieldLabel);
+              }
+              continue;
+            }
             const toolbar = editor.previousElementSibling;
             const pair = document.createElement("div"); pair.className = "language-pair language-pair--editors";
             toolbar.before(pair);
@@ -229,10 +275,10 @@
               const field = $("[data-editor]", section);
               field.lang = language; field.dataset.language = language;
               field.dataset.bilingualRequired = "true";
-              field.dataset.fieldLabel = `${blockLabel(block.type)} ${state.blocks.indexOf(block) + 1} · ${label}`;
+              field.dataset.fieldLabel = `${block.textSide ? "Text neben Bild" : blockLabel(block.type)} ${state.blocks.indexOf(block) + 1} · ${label}`;
               field.setAttribute("aria-label", field.dataset.fieldLabel);
               field.dataset.placeholder = `Text auf ${label} eingeben…`;
-              if (language === "en") field.innerHTML = sanitizeHtml(block.htmlEn || "");
+              if (language === "en") field.innerHTML = editableHtml(block.htmlEn || "");
             }
           }
           updateCompletion();
@@ -330,7 +376,7 @@
           review.className = `review-state ${total ? "is-incomplete" : "is-ready"}`;
           review.textContent = total
             ? `${total} ${total === 1 ? "Angabe fehlt" : "Angaben fehlen"}. Sie können jeden Schritt direkt öffnen.`
-            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Die Änderungen können geprüft und als ZIP exportiert werden.";
+            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Die Übungsdaten können geprüft, im Tab gemerkt oder als ZIP heruntergeladen werden.";
         }
 
         function showStep(name, { focus = false } = {}) {
@@ -396,6 +442,7 @@
           finally { setBusy(false); }
         }
         async function checkImage(file) {
+          if (checkedImages.has(file)) return checkedImages.get(file);
           if (!file.size || file.size > maxImageBytes) throw new Error("Das Bild muss zwischen 1 Byte und 50 MiB groß sein.");
           const bytes = new Uint8Array(await file.slice(0, 256).arrayBuffer());
           const ascii = (start, end) => String.fromCharCode(...bytes.slice(start, end));
@@ -417,6 +464,9 @@
             image.src = url;
             await image.decode();
             if (!image.naturalWidth || image.naturalWidth * image.naturalHeight > 100000000) throw new Error("Das Bild überschreitet 100 Megapixel.");
+            const dimensions = Object.freeze({ width: image.naturalWidth, height: image.naturalHeight });
+            imageDimensions.set(file, dimensions); imageDimensions.set(checked, dimensions);
+            checkedImages.set(file, checked); checkedImages.set(checked, checked);
           } catch { throw new Error("Das Bild ist beschädigt, zu groß oder kann in diesem Browser nicht dekodiert werden."); }
           finally { URL.revokeObjectURL(url); }
           return checked;
@@ -497,9 +547,12 @@
             if ((state.cardFile || state.images.length || state.blocks.length || ["title", "titleEn", "description", "descriptionEn", "cardAlt", "cardAltEn", "leadAlt", "leadAltEn"].some(key => fields[key].value.trim())) && !managed && !confirm("Aktuelle Eingaben durch das geprüfte Fahrzeug ersetzen?")) return;
             if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
             state.images.forEach((image) => URL.revokeObjectURL(image.url));
+            state.watermarkEnabled = false; $("#watermark-all").checked = false;
+            removedBlocks.length = 0; updateUndo();
             state.original = { category: record.category, slug: record.slug, sourceUrl: record.sourceUrl };
             state.slugWasEdited = true;
             state.cardFile = checked.get(record.cardImage);
+            state.cardImported = true;
             state.cardName = record.cardImage.slice(2);
             showCard();
             state.images = [...checked].filter(([ref]) => ref !== record.cardImage).sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true })).map(([ref, file]) => {
@@ -508,7 +561,7 @@
             });
             const imageId = (ref) => ref === record.cardImage ? "__card__" : state.images.find((image) => `./${image.outputName}` === ref).id;
             state.leadImageId = imageId(record.leadImage);
-            state.blocks = record.blocks.map((block) => ({ id: id(), type: block.type, html: block.html || "", htmlEn: block.htmlEn || "", originalHtml: block.html, originalHtmlEn: block.htmlEn, imageIds: block.images?.map((image) => imageId(image.src)) || [], imageMeta: block.images?.map(({ alt, altEn, caption, captionEn }) => ({ alt, altEn: altEn || "", ...(caption !== undefined ? { caption } : {}), ...(captionEn !== undefined ? { captionEn } : {}) })) || [] }));
+            state.blocks = record.blocks.map((block) => ({ id: id(), type: block.type, textSide: block.textSide, html: block.html || "", htmlEn: block.htmlEn || "", originalHtml: block.html, originalHtmlEn: block.htmlEn, imageIds: block.images?.map((image) => imageId(image.src)) || [], imageMeta: block.images?.map(({ alt, altEn, caption, captionEn, size }) => ({ ...(size ? { size } : {}), alt, altEn: altEn || "", ...(caption !== undefined ? { caption } : {}), ...(captionEn !== undefined ? { captionEn } : {}) })) || [] }));
             for (const key of ["title", "slug", "category", "description", "order", "dateModified"]) fields[key].value = record[key];
             for (const [field, key] of [["titleEn", "titleEn"], ["descriptionEn", "descriptionEn"], ["cardAltEn", "cardImageAltEn"], ["leadAltEn", "leadImageAltEn"]]) fields[field].value = record[key] || "";
             fields.cardAltEn.dataset.touched = fields.leadAltEn.dataset.touched = "true";
@@ -551,7 +604,7 @@
           const report = {};
           const html = event.clipboardData.getData("text/html") || escapeHtml(event.clipboardData.getData("text/plain")).replace(/\r?\n/g, "<br>");
           const clean = sanitizeHtml(html, report);
-          document.execCommand("insertHTML", false, clean);
+          document.execCommand("insertHTML", false, editableHtml(clean));
           const block = state.blocks.find((item) => item.id === editor.dataset.editor);
           if (block) block[editor.dataset.language === "en" ? "htmlEn" : "html"] = sanitizeHtml(editor.innerHTML);
           notifyChange(true);
@@ -586,7 +639,10 @@
           else { block.imageIds.splice(index, 1); block.imageMeta.splice(index, 1); }
           renderBlocks();
           notifyChange();
-          $("[data-block-id='" + block.id + "'] button:not(:disabled)")?.focus();
+          const nextIndex = button.dataset.entryMove !== undefined ? index - 1 : Math.min(index, block.imageIds.length - 1);
+          const target = $(`[data-entry-block="${block.id}"][data-entry-${button.dataset.entryMove !== undefined && nextIndex > 0 ? "move" : "remove"}="${nextIndex}"]`);
+          if (target) target.focus(); else focusBlock(block.id);
+          structuralStatus.textContent = button.dataset.entryMove !== undefined ? `Galeriebild an Position ${nextIndex + 1} verschoben.` : "Bild aus der Galerie entfernt.";
         });
         // Restore keyboard focus after the existing reordering handlers rebuild lists.
         for (const [selector, key, fallback] of [["#image-list", "imageId", "#gallery-files"], ["#block-list", "blockId", "[data-add-block='copy']"]]) {
@@ -698,6 +754,7 @@
             const checked = await checkImage(file);
             if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
             state.cardFile = checked;
+            state.cardImported = false;
             state.cardName = state.cardName ? state.cardName.replace(/\.[^.]+$/, `.${extensionFor(checked)}`) : "";
             showCard();
             renumberImages(); renderImages();
@@ -708,12 +765,50 @@
           });
         }
 
+        function dimensionLabel(file) {
+          const dimensions = imageDimensions.get(file);
+          return dimensions ? `${dimensions.width} × ${dimensions.height} px` : "";
+        }
+        function updateCardDetails() {
+          const label = state.cardFile ? "Kartenbild ersetzen" : "Kartenbild auswählen";
+          $("#card-drop > div").firstElementChild.textContent = label + " oder hier ablegen";
+          $("#card-drop .file-control label").textContent = label;
+          const info = state.cardFile ? `${state.cardImported ? "Importiert" : "Ausgewählt"}: ${state.cardFile.name} · ${dimensionLabel(state.cardFile)} · ${humanSize(state.cardFile.size)} · Export: ${cardName()}` : "Noch kein Kartenbild ausgewählt.";
+          $('[data-file-summary="card-file"]').textContent = info;
+          $("#card-file-info").textContent = info;
+        }
+        function imageQualityWarnings() {
+          const warnings = new Map();
+          const check = (image, width, usage) => {
+            if (!image?.file) return;
+            const dimensions = imageDimensions.get(image.file);
+            if (dimensions && dimensions.width < width) {
+              const key = image.id + ":" + usage;
+              warnings.set(key, `${image.outputName || cardName()}: ${dimensions.width} × ${dimensions.height} px. Für ${usage} sind mindestens ${width} px Breite empfohlen.`);
+            }
+          };
+          const pool = poolImages();
+          check(pool.find(image => image.id === "__card__"), presentation.widths.card, "das Kartenbild");
+          if (!state.blocks.some(block => block.imageIds.includes(state.leadImageId))) check(pool.find(image => image.id === state.leadImageId), presentation.widths.lead, "das Hauptbild");
+          state.blocks.forEach((block, blockIndex) => block.imageIds.forEach((imageId, index) => {
+            const size = block.imageMeta?.[index]?.size || "small";
+            check(pool.find(image => image.id === imageId), presentation.widths[size], `Galerie ${blockIndex + 1}, Bild ${index + 1} (${ { small: "Klein", medium: "Mittel", large: "Groß" }[size] })`);
+          }));
+          return [...warnings.values()];
+        }
+        function updateImageQuality() {
+          const warnings = imageQualityWarnings();
+          const root = $("#image-quality"); root.hidden = !warnings.length;
+          root.innerHTML = warnings.length ? '<strong>Hinweise zur Bildqualität (Export bleibt möglich)</strong><ul>' + warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("") + '</ul>' : "";
+        }
         function showCard() {
+          updateCardDetails();
           if (!state.cardFile) { $("#card-preview").hidden = true; $("#card-preview-image").removeAttribute("src"); $("#card-file-info").textContent = "Noch kein Kartenbild ausgewählt."; return; }
+          if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
           state.cardUrl = URL.createObjectURL(state.cardFile);
           $("#card-preview-image").src = state.cardUrl;
           $("#card-preview").hidden = false;
-          $("#card-file-info").textContent = `${state.cardFile.name} · ${humanSize(state.cardFile.size)} · Export: ${cardName()}`;
+          updateCardDetails();
         }
 
         async function addGalleryFiles(fileList) {
@@ -724,9 +819,14 @@
             const errors = [];
             for (const source of files) {
               try {
-                const file = await checkImage(source);
-                const duplicate = state.images.some((image) => image.file.name === file.name && image.file.size === file.size && image.file.lastModified === file.lastModified);
-                if (duplicate) { errors.push(`${file.name}: Bereits in der Bildsammlung vorhanden.`); continue; }
+                const original = await checkImage(source);
+                const duplicate = state.images.some(image => {
+                  const file = image.file;
+                  return file.name === original.name && file.size === original.size && file.lastModified === original.lastModified;
+                });
+                if (duplicate) { errors.push(`${original.name}: Bereits in der Bildsammlung vorhanden.`); continue; }
+                const file = original;
+                if (file.size + (state.cardFile?.size || 0) + state.images.reduce((sum, image) => sum + image.file.size, 0) > maxExportBytes) throw new Error("Die Bildsammlung überschreitet 512 MiB.");
                 state.images.push({ id: id(), file, url: URL.createObjectURL(file), outputName: "", alt: "", altTouched: false, caption: "" });
               } catch (error) { errors.push(`${source.name}: ${error.message}`); }
             }
@@ -792,7 +892,7 @@
 						<div class="drag-handle" draggable="true" aria-hidden="true">⋮⋮</div>
 						<img class="image-thumb" src="${image.url}" alt="" />
 						<div class="image-meta">
-							<strong class="image-name">${escapeHtml(image.outputName)}</strong>
+							<strong class="image-name">${escapeHtml(image.outputName)}</strong><span class="hint">${escapeHtml(dimensionLabel(image.file))}</span>
 							<div class="field">
 								<label for="alt-${image.id}">Alternativtext</label>
 								<input id="alt-${image.id}" type="text" data-image-alt="${image.id}" value="${escapeHtml(image.alt)}" />
@@ -814,8 +914,40 @@
           pairImageFields();
         }
 
+        function updateUndo() {
+          $("#block-undo").hidden = removedBlocks.length === 0;
+          $("#undo-count").textContent = `${removedBlocks.length} wiederherstellbar`;
+        }
+        function focusBlock(blockId, direction) {
+          const article = $(`[data-block-id="${blockId}"]`);
+          if (!article) return;
+          const move = direction && $(`[data-block-move="${direction}"]`, article);
+          (move && !move.disabled ? move : $(".content-block__title", article)).focus({ preventScroll: true });
+        }
+        function focusImage(imageId, direction) {
+          const article = $(`[data-image-id="${imageId}"]`);
+          if (!article) { $("#gallery-files").focus(); return; }
+          const move = direction && $(`[data-image-move="${direction}"]`, article);
+          (move && !move.disabled ? move : $("[data-image-remove]", article)).focus({ preventScroll: true });
+        }
+        function restoreRemovedBlock() {
+          if (state.busy || !removedBlocks.length) return;
+          const entry = removedBlocks.pop(), block = structuredClone(entry.block);
+          const available = new Set(poolImages().map(image => image.id));
+          const kept = block.imageIds.map((imageId, index) => ({ imageId, meta: block.imageMeta[index] })).filter(image => available.has(image.imageId));
+          const missing = block.imageIds.length - kept.length;
+          block.imageIds = kept.map(image => image.imageId); block.imageMeta = kept.map(image => image.meta);
+          let index = state.blocks.findIndex(item => item.id === entry.next);
+          if (index < 0) { const previous = state.blocks.findIndex(item => item.id === entry.previous); index = previous < 0 ? Math.min(entry.index, state.blocks.length) : previous + 1; }
+          state.blocks.splice(index, 0, block);
+          renderBlocks(); updateUndo(); notifyChange(); focusBlock(block.id);
+          structuralStatus.textContent = `Block ${index + 1} wiederhergestellt.${missing ? ` ${missing} inzwischen entfernte Bilder sind nicht mehr enthalten.` : ""}`;
+          if (missing) setStatus([], structuralStatus.textContent);
+        }
         function addBlock(type) {
-          state.blocks.push({ id: id(), type, html: "", htmlEn: "", imageIds: [], imageMeta: [] });
+          const textSide = type === "image-text" ? "left" : undefined;
+          if (textSide) type = "gallery";
+          state.blocks.push({ id: id(), type, textSide, html: "", htmlEn: "", imageIds: [], imageMeta: [] });
           renderBlocks();
           updateSummary();
         }
@@ -836,14 +968,71 @@
             updateStepStatus();
             return;
           }
-          list.innerHTML = state.blocks
+          const template = document.createElement("template");
+          template.innerHTML = state.blocks
             .map((block, index) => {
-              const isContact = block.type === "contact";
               const body =
                 block.type === "gallery"
                   ? renderGalleryChoices(block)
-                  : `
+                  : renderTextEditor(block, index);
+              const sideControls = block.textSide ? `<p class="hint">Genau ein Bild auswählen. Bild und Text stehen nebeneinander; mobil untereinander.</p><label>Textposition<select data-text-side="${block.id}"><option value="left" ${block.textSide === "left" ? "selected" : ""}>Text links</option><option value="right" ${block.textSide === "right" ? "selected" : ""}>Text rechts</option></select></label>${renderTextEditor(block, index)}` : "";
+              return `
+						<article class="content-block content-block--${block.type}" data-block-id="${block.id}">
+							<header class="content-block__head">
+								<div class="content-block__title" role="heading" aria-level="3" tabindex="-1"><span class="drag-handle" draggable="true" aria-hidden="true">⋮⋮</span>${index + 1}. ${block.textSide ? "Text neben Bild" : blockLabel(block.type)}</div>
+								<div class="inline-row">
+									<button class="btn btn--small" type="button" data-block-move="up" data-id="${block.id}" ${index === 0 ? "disabled" : ""} aria-label="Block nach oben verschieben">↑</button>
+									<button class="btn btn--small" type="button" data-block-move="down" data-id="${block.id}" ${index === state.blocks.length - 1 ? "disabled" : ""} aria-label="Block nach unten verschieben">↓</button>
+									<button class="btn btn--small btn--danger" type="button" data-block-remove="${block.id}">Entfernen</button>
+								</div>
+							</header>
+							<div class="content-block__body">${body}${sideControls}</div>
+						</article>`;
+            })
+            .join("");
+          const ids = new Set(state.blocks.map(block => block.id));
+          for (const child of [...list.children]) if (!ids.has(child.dataset.blockId)) child.remove();
+          const articles = [];
+          for (const fresh of [...template.content.children]) {
+            let article = $(`[data-block-id="${fresh.dataset.blockId}"]`, list);
+            if (article) {
+              $(".content-block__head", article).replaceWith($(".content-block__head", fresh));
+              if (article.classList.contains("content-block--gallery")) {
+                const body = $(".content-block__body", article), newBody = $(".content-block__body", fresh);
+                for (const child of [...body.children]) if (child.matches(".gallery-choices, .gallery-selected, .empty")) child.remove();
+                const choices = document.createDocumentFragment();
+                for (const child of [...newBody.children]) if (child.matches(".gallery-choices, .gallery-selected, .empty")) choices.append(child);
+                body.prepend(choices);
+              }
+            } else article = fresh;
+            articles.push(article);
+          }
+          const insert = (article, cursor) => {
+            if (article === cursor || article.parentElement === list && article.nextElementSibling === cursor) return;
+            if (article.parentElement === list && list.moveBefore) list.moveBefore(article, cursor);
+            else list.insertBefore(article, cursor);
+          };
+          // Keep the most recently edited host anchored; move its neighbours around it.
+          const anchorIndex = articles.findIndex(article => article.parentElement === list && article.dataset.blockId === lastEditorBlockId);
+          if (anchorIndex >= 0) {
+            let cursor = articles[anchorIndex];
+            for (let i = anchorIndex - 1; i >= 0; i--) { insert(articles[i], cursor); cursor = articles[i]; }
+            cursor = articles[anchorIndex].nextElementSibling;
+            for (let i = anchorIndex + 1; i < articles.length; i++) { insert(articles[i], cursor); cursor = articles[i].nextElementSibling; }
+          } else {
+            let cursor = list.firstElementChild;
+            for (const article of articles) { insert(article, cursor); cursor = article.nextElementSibling; }
+          }
+          pairBlockFields();
+          updateStepStatus();
+        }
+
+        function renderTextEditor(block, index) {
+          const isContact = block.type === "contact";
+          return `
 							<div class="toolbar" role="toolbar" aria-label="Text formatieren">
+                  <label class="text-color-control">Textfarbe<select data-text-color aria-label="Textfarbe">${Object.entries(textColors).map(([name, color]) => `<option value="${color}">${colorLabels[name]}</option>`).join("")}</select></label>
+                  <button type="button" data-command="removeFormat" title="Formatierung und Farbe entfernen">Format entfernen</button>
 								<button type="button" data-command="bold" aria-label="Fett" title="Fett"><strong>B</strong></button>
 								<button type="button" data-command="italic" aria-label="Kursiv" title="Kursiv"><em>I</em></button>
 								<button type="button" data-command="formatBlock" data-value="h2" title="Überschrift">H2</button>
@@ -851,12 +1040,12 @@
 								${!isContact ? '<button type="button" data-command="formatBlock" data-value="blockquote" title="Zitat">“ Zitat</button>' : ""}
 								<button type="button" data-command="insertUnorderedList" title="Liste">• Liste</button>
 							</div>
-							<div class="editor editor--${isContact ? "contact" : "copy"}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="${blockLabel(block.type)} ${index + 1}" data-editor="${block.id}" data-placeholder="${isContact ? "Anfragetext hier eingeben…" : "Text hier eingeben…"}">${sanitizeHtml(block.html)}</div>
+							<div class="editor editor--${isContact ? "contact" : "copy"}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="${blockLabel(block.type)} ${index + 1}" data-editor="${block.id}" data-placeholder="${isContact ? "Anfragetext hier eingeben…" : "Text hier eingeben…"}">${editableHtml(block.html)}</div>
 							${
                 isContact
                   ? `
 								<div class="contact-actions-preview" aria-label="Vorschau der automatisch ergänzten Kontaktmöglichkeiten">
-									<span class="contact-actions-preview__label">Wird auf der Website automatisch ergänzt</span>
+									<span class="contact-actions-preview__label">Beispiel für spätere Kontaktmöglichkeiten</span>
 									<div class="contact-actions-preview__buttons" aria-hidden="true">
 										<span>03 69 66 / 83 7 83</span>
 										<span>E-Mail schreiben</span>
@@ -864,26 +1053,10 @@
 								</div>`
                   : ""
               }`;
-              return `
-						<article class="content-block content-block--${block.type}" data-block-id="${block.id}">
-							<header class="content-block__head">
-								<div class="content-block__title"><span class="drag-handle" draggable="true" aria-hidden="true">⋮⋮</span>${index + 1}. ${blockLabel(block.type)}</div>
-								<div class="inline-row">
-									<button class="btn btn--small" type="button" data-block-move="up" data-id="${block.id}" ${index === 0 ? "disabled" : ""} aria-label="Block nach oben verschieben">↑</button>
-									<button class="btn btn--small" type="button" data-block-move="down" data-id="${block.id}" ${index === state.blocks.length - 1 ? "disabled" : ""} aria-label="Block nach unten verschieben">↓</button>
-									<button class="btn btn--small btn--danger" type="button" data-block-remove="${block.id}">Entfernen</button>
-								</div>
-							</header>
-							<div class="content-block__body">${body}</div>
-						</article>`;
-            })
-            .join("");
-          pairBlockFields();
-          updateStepStatus();
         }
 
         function poolImages() {
-          return [...(state.cardFile ? [{ id: "__card__", outputName: cardName(), url: state.cardUrl, alt: fields.cardAlt.value, altEn: fields.cardAltEn.value, caption: "", captionEn: "" }] : []), ...state.images];
+          return [...(state.cardFile ? [{ id: "__card__", file: state.cardFile, outputName: cardName(), url: state.cardUrl, alt: fields.cardAlt.value, altEn: fields.cardAltEn.value, caption: "", captionEn: "" }] : []), ...state.images];
         }
 
         function renderGalleryChoices(block) {
@@ -897,10 +1070,11 @@
               if (!image) return "";
               const meta = block.imageMeta?.[index] || image;
               return `<li><strong>${escapeHtml(image.outputName)}</strong>
+                <label>Bildgröße<select data-image-size="${index}" data-size-block="${block.id}">${[["small", "Klein · 420 px"], ["medium", "Mittel · 840 px"], ["large", "Groß · Fensterbreite"]].map(([value, label]) => `<option value="${value}" ${(meta.size || "small") === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
                 <label>Alternativtext des Galeriebilds<input data-entry-alt="${index}" data-entry-block="${block.id}" value="${escapeHtml(meta.alt)}" /></label>
                 <label>Galerie-Bildunterschrift<input data-entry-caption="${index}" data-entry-block="${block.id}" value="${escapeHtml(meta.caption || "")}" /></label>
                 <button type="button" class="btn btn--small" data-entry-move="${index}" data-entry-block="${block.id}" ${index === 0 ? "disabled" : ""}>Nach oben</button>
-                ${index < block.imageIds.length - 1 ? `<button type="button" class="btn btn--small" data-entry-split="${index}" data-entry-block="${block.id}">Galerie nach diesem Bild teilen</button>` : ""}
+                ${!block.textSide && index < block.imageIds.length - 1 ? `<button type="button" class="btn btn--small" data-entry-split="${index}" data-entry-block="${block.id}">Galerie nach diesem Bild teilen</button>` : ""}
                 <button type="button" class="btn btn--small" data-entry-remove="${index}" data-entry-block="${block.id}">Aus Galerie entfernen</button>
               </li>`;
             }).join("")}</ol>`;
@@ -909,7 +1083,7 @@
         function splitGallery(blockId, position) {
           const index = state.blocks.findIndex((block) => block.id === blockId);
           const block = state.blocks[index];
-          if (!block || block.type !== "gallery" || !Number.isInteger(position) || position < 1 || position >= block.imageIds.length) return;
+          if (!block || block.textSide || block.type !== "gallery" || !Number.isInteger(position) || position < 1 || position >= block.imageIds.length) return;
           const metadata = block.imageIds.map((_, index) => block.imageMeta?.[index] || null);
           const next = { ...block, id: id(), imageIds: block.imageIds.slice(position), imageMeta: metadata.slice(position) };
           block.imageIds = block.imageIds.slice(0, position);
@@ -933,7 +1107,7 @@
           const english = $("#preview-language").value === "en";
           const pool = poolImages();
           const text = (value) => escapeHtml(value || "");
-          const photo = (image, meta, lead = false) => `<figure${lead ? ' class="lead"' : ""}><img src="${text(image.url)}" alt="${text(english ? meta.altEn : meta.alt)}" />${!lead && (english ? meta.captionEn : meta.caption) ? `<figcaption>${text(english ? meta.captionEn : meta.caption)}</figcaption>` : ""}</figure>`;
+          const photo = (image, meta, lead = false) => `<figure class="${lead ? 'lead vehicle-lead' : `story-image story-image--${meta.size || 'small'} photo-${meta.size || 'small'}`}"><span class="story-image__button"><img src="${text(image.url)}" alt="${text(english ? meta.altEn : meta.alt)}" /></span>${!lead && (english ? meta.captionEn : meta.caption) ? `<figcaption>${text(english ? meta.captionEn : meta.caption)}</figcaption>` : ""}</figure>`;
           const lead = pool.find((image) => image.id === state.leadImageId);
           const leadInStory = state.blocks.some((block) => block.type === "gallery" && block.imageIds.includes(state.leadImageId));
           const runs = [];
@@ -944,16 +1118,21 @@
                 const image = pool.find((item) => item.id === imageId);
                 return image ? [photo(image, block.imageMeta?.[index] || image)] : [];
               });
-              if (previous?.type === "gallery") previous.images.push(...images);
-              else runs.push({ type: "gallery", images });
+              if (!block.textSide && previous?.type === "gallery" && !previous.textSide) { previous.images.push(...images); previous.sized ||= block.imageMeta?.some(meta => meta?.size && meta.size !== "small"); }
+              else runs.push({ type: "gallery", images, textSide: block.textSide, sized: block.imageIds.some((_, index) => block.imageMeta?.[index]?.size && block.imageMeta[index].size !== "small"), wide: block.imageMeta?.[0]?.size === "large", html: previewHtml(english ? block.htmlEn : block.html) });
             } else runs.push({ type: block.type, html: previewHtml(english ? block.htmlEn : block.html) });
           }
           const body = runs.map((run) => run.type === "gallery"
-            ? `<div class="photos${run.images.length > 1 ? " multiple" : ""}">${run.images.join("")}</div>`
-            : `<${run.type === "contact" ? "aside" : "section"} class="${run.type}">${run.html}${run.type === "contact" ? `<div class="actions"><span>03 69 66 / 83 7 83</span><span>${english ? "Send email" : "E-Mail schreiben"}</span></div>` : ""}</${run.type === "contact" ? "aside" : "section"}>`).join("");
-          $("#page-preview-frame").srcdoc = `<!doctype html><html lang="${english ? "en" : "de"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>
-            *{box-sizing:border-box}body{margin:0;background:#eee;color:#111;font-family:Georgia,serif;overflow-wrap:anywhere}header{text-align:center;padding:40px 20px}header p{font-size:12px;letter-spacing:.15em}h1{font-size:clamp(32px,3.4vw,56px);font-weight:400;text-transform:uppercase;line-height:1.05;margin:20px auto;max-width:28ch}article{max-width:1120px;margin:auto;padding:16px clamp(20px,4vw,48px) 60px}article>*+*{margin-top:20px}.copy{max-width:736px;margin-inline:auto;font-size:clamp(20px,1.6vw,24px);font-weight:600;line-height:1.6}.copy p,.copy blockquote,.contact p{margin:0}.copy h2,.copy h3{text-align:center;text-transform:uppercase;font-weight:400;line-height:1.05}.photos{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:420px;margin-inline:auto;align-items:start}figure{margin:0;min-width:0}img{display:block;width:100%;height:auto;max-height:416px;object-fit:contain}figcaption{padding-top:12px;font-size:15px;font-weight:600;line-height:1.5}.lead{max-width:420px;margin:auto}.contact{max-width:928px;margin-inline:auto;border-block:1px solid #999;padding:24px 0;font-size:24px;line-height:1.65;text-align:center;font-weight:600}.actions{display:flex;justify-content:center;gap:16px;margin-top:32px;font:12px sans-serif}.actions span{border:1px solid;padding:14px 18px}a{color:inherit;text-decoration:underline}@media(min-width:760px){.multiple{max-width:856px;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(min-width:1100px){.multiple{max-width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}.multiple:has(> :nth-child(2):last-child){max-width:856px;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:759px){.actions{flex-direction:column}.contact{font-size:20px}}
-          </style></head><body><header><p>${text(english ? { "aktuelle-projekte": "Current projects", "vergangene-projekte": "Completed projects", "fahrzeugangebote": "Cars for sale" }[fields.category.value] : fields.category.selectedOptions[0]?.textContent)}</p><h1>${text(english ? fields.titleEn.value : fields.title.value) || "Titel fehlt"}</h1></header>${lead && !leadInStory ? photo(lead, { alt: fields.leadAlt.value, altEn: fields.leadAltEn.value }, true) : ""}<article>${body || '<p>Noch keine Inhaltsblöcke vorhanden.</p>'}</article></body></html>`;
+            ? `<div class="photos story-gallery${run.images.length > 1 ? " multiple story-gallery--multiple" : ""}${run.sized ? " sized story-gallery--sized" : ""}${run.textSide ? ` side side-${run.textSide} story-gallery--text${run.textSide === "right" ? " story-gallery--text-right" : ""}${run.wide ? " wide story-gallery--wide" : ""}` : ""}">${run.textSide ? `<div class="copy story-copy story-side-copy">${run.html}</div>` : ""}${run.images.join("")}</div>`
+            : run.type === "contact" ? `<section class="contact story-contact"><div>${run.html}</div><div class="story-contact__actions"><a>03 69 66 / 83 7 83</a><a>${english ? "Send email" : "E-Mail schreiben"}</a></div></section>` : `<div class="copy story-copy">${run.html}</div>`).join("");
+          const category = english ? { "aktuelle-projekte": "Current projects", "vergangene-projekte": "Completed projects", "fahrzeugangebote": "Cars for sale" }[fields.category.value] : fields.category.selectedOptions[0]?.textContent;
+          $("#page-preview-frame").srcdoc = `<!doctype html><html lang="${english ? "en" : "de"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob: data:; font-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>
+            @font-face{font-family:Lora;src:url("${presentation.fontDataUrl}") format("truetype");font-weight:400 700;font-display:swap}
+            *{box-sizing:border-box}body{overflow-x:clip;margin:0;background:#eadba5;color:#fff;font-family:Lora,Georgia,serif;overflow-wrap:anywhere}a{color:inherit} .textured-background{position:relative;isolation:isolate} :root{--font-heading:Lora,Georgia,serif;--font-body:Lora,Georgia,serif}
+            ${presentation.textureCss}
+            ${presentation.gradientCss}
+            ${presentation.websiteCss}
+          </style></head><body><main class="vehicle-detail textured-background gradient-palette"><div class="background-texture"><div class="background-texture__viewport"><img class="background-texture__surface" src="${presentation.textureDataUrl}" alt=""></div><div class="background-texture__grain"></div></div><header class="vehicle-masthead"><p><a>${text(category)}</a></p><h1>${text(english ? fields.titleEn.value : fields.title.value) || "Titel fehlt"}</h1></header><div class="vehicle-documentation">${lead && !leadInStory ? photo(lead, { alt: fields.leadAlt.value, altEn: fields.leadAltEn.value }, true) : ""}<article class="vehicle-story">${body || '<p>Noch keine Inhaltsblöcke vorhanden.</p>'}</article></div></main></body></html>`;
           sizePagePreview();
         }
 
@@ -998,9 +1177,9 @@
             state.images.length + (state.cardFile ? 1 : 0),
           );
           $("#summary-blocks").textContent = String(state.blocks.length);
-          $("#description-count").textContent = String(
-            fields.description.value.length,
-          );
+          $("#description-count").textContent = String(fields.description.value.length);
+          $("#description-count-en").textContent = String(fields.descriptionEn.value.length);
+          updateCardDetails(); updateImageQuality();
           const displayCardName = state.cardFile
             ? cardName()
             : "card.ext";
@@ -1035,12 +1214,26 @@
           } catch { return false; }
         }
 
+        function editableHtml(html) {
+          const template = document.createElement("template");
+          template.innerHTML = sanitizeHtml(html || "");
+          // Palette classes are the export contract. Native font elements make
+          // imported/pasted colors editable and removable by browser commands.
+          for (const span of template.content.querySelectorAll("span[class]")) {
+            const color = textColors[span.className.replace("om-color-", "")];
+            if (!color) continue;
+            const font = document.createElement("font"); font.color = color;
+            font.append(...span.childNodes); span.replaceWith(font);
+          }
+          return template.innerHTML;
+        }
+
         function sanitizeHtml(html, report = {}) {
           const source = document.createElement("template");
           source.innerHTML = html;
           if (/<\s*(?:html|head|body)\b|<!doctype\b/i.test(html)) report.removed = true;
           const output = document.createElement("template");
-          const tags = new Set(["p", "h2", "h3", "strong", "em", "br", "blockquote", "ul", "ol", "li", "a"]);
+          const tags = new Set(["p", "h2", "h3", "strong", "em", "br", "blockquote", "ul", "ol", "li", "a", "span"]);
           const discard = new Set(["script", "style", "iframe", "object", "embed", "form", "input", "button", "textarea", "select", "template", "noscript", "link", "meta", "base"]);
           const aliases = { b: "strong", i: "em", div: "p" };
           function copyNodes(from, to) {
@@ -1049,12 +1242,14 @@
               if (node.nodeType !== Node.ELEMENT_NODE) { report.removed = true; continue; }
               const name = node.localName;
               if (node.namespaceURI !== "http://www.w3.org/1999/xhtml" || discard.has(name)) { report.removed = true; continue; }
-              const tag = Object.hasOwn(aliases, name) ? aliases[name] : name;
+              const tag = name === "font" ? "span" : Object.hasOwn(aliases, name) ? aliases[name] : name;
               if (!tags.has(tag)) { report.removed = true; copyNodes(node, to); continue; }
               if (tag !== name) report.normalized = true;
               const clean = document.createElement(tag);
               for (const { name: attr, value } of node.attributes) {
                 if (tag === "a" && (attr === "title" || (attr === "href" && isSupportedContentLink(value)))) clean.setAttribute(attr, value);
+                else if (tag === "span" && attr === "class" && /^om-color-(black|red|green|blue|cyan|yellow|magenta)$/.test(value)) clean.className = value;
+                else if (name === "font" && attr === "color" && colorKey(value)) clean.className = `om-color-${colorKey(value)}`;
                 else report.removed = true;
               }
               copyNodes(node, clean);
@@ -1116,7 +1311,7 @@
             (image) =>
               !galleryIds.has(image.id) && image.id !== state.leadImageId,
           );
-          return { errors, unused };
+          return { errors, unused, warnings: imageQualityWarnings() };
         }
 
         function setStatus(errors, successMessage = "") {
@@ -1185,10 +1380,11 @@
               return { type: block.type, html: exportHtml(block, "html"), htmlEn: exportHtml(block, "htmlEn") };
             return {
               type: "gallery",
+              ...(block.textSide ? { textSide: block.textSide, html: exportHtml(block, "html"), htmlEn: exportHtml(block, "htmlEn") } : {}),
               images: block.imageIds.map((imageId, index) => {
                 const image = poolImages().find((item) => item.id === imageId);
                 const meta = block.imageMeta?.[index] || image;
-                const entry = { src: `./${image.outputName}`, alt: meta.alt.trim(), altEn: (meta.altEn || "").trim() };
+                const entry = { ...(meta.size ? { size: meta.size } : {}), src: `./${image.outputName}`, alt: meta.alt.trim(), altEn: (meta.altEn || "").trim() };
                 if (Object.hasOwn(meta, "caption") && meta.caption !== undefined) entry.caption = meta.caption;
                 if (Object.hasOwn(meta, "captionEn") && meta.captionEn !== undefined) entry.captionEn = meta.captionEn;
                 return entry;
@@ -1342,7 +1538,7 @@
           button.textContent = "ZIP wird erstellt…";
           setStatus([], "Dateien werden vorbereitet…");
           try {
-            const snapshot = editorSnapshot();
+            const snapshot = await prepareOutputSnapshot(editorSnapshot());
             updateSummary();
             await workflow?.prepareExport(snapshot);
             const record = snapshot.record;
@@ -1389,7 +1585,7 @@
             ]);
           } finally {
             setBusy(false);
-            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "ZIP erstellen";
+            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "Übungs-ZIP herunterladen";
           }
         }
 
@@ -1454,6 +1650,14 @@
         $("#card-file").addEventListener("change", (event) =>
           setCardFile(event.target.files[0]),
         );
+        $("#watermark-all").addEventListener("change", event => {
+          state.watermarkEnabled = event.target.checked;
+          notifyChange();
+          setStatus([], state.watermarkEnabled
+            ? window.VehicleWebsiteTools ? "Wasserzeichen werden beim ZIP-Download oder Speichern erstellt." : "Wasserzeichen werden beim ZIP-Download erstellt."
+            : "Wasserzeichen deaktiviert.");
+        });
+
         $("#gallery-files").addEventListener("change", (event) => {
           addGalleryFiles(event.target.files);
           event.target.value = "";
@@ -1491,7 +1695,8 @@
             renumberImages();
             renderImages();
             renderBlocks();
-            updateSummary();
+            notifyChange(); focusImage(move.dataset.id, move.dataset.imageMove);
+            structuralStatus.textContent = `Bild an Position ${state.images.findIndex(image => image.id === move.dataset.id) + 1} verschoben.`;
           }
           if (remove) {
             const index = state.images.findIndex(
@@ -1513,7 +1718,8 @@
             renumberImages();
             renderImages();
             renderBlocks();
-            updateSummary();
+            notifyChange(); focusImage((state.images[index] || state.images[index - 1])?.id);
+            structuralStatus.textContent = "Bild entfernt. Galerien und Hauptbildauswahl wurden aktualisiert.";
           }
         });
 
@@ -1545,11 +1751,13 @@
           const to = state.images.findIndex(
             (image) => image.id === target.dataset.imageId,
           );
+          const movedId = state.draggedImageId;
           moveItem(state.images, from, to);
           renumberImages();
           renderImages();
           renderBlocks();
-          updateSummary();
+          notifyChange(); focusImage(movedId);
+          structuralStatus.textContent = `Bild an Position ${to + 1} verschoben.`;
           state.draggedImageId = "";
         });
 
@@ -1576,6 +1784,7 @@
           if (!block) return;
           block.imageMeta ||= block.imageIds.map(() => null);
           if (event.target.checked) {
+            if (block.textSide) { block.imageIds = []; block.imageMeta = []; }
             const reused = state.blocks.some((item) => item.imageIds.includes(event.target.value));
             block.imageIds.push(event.target.value);
             block.imageMeta.push(null);
@@ -1590,30 +1799,158 @@
           updateSummary();
         });
 
+        $("#block-list").addEventListener("change", (event) => {
+          const input = event.target;
+          if (input.dataset.textSide) {
+            state.blocks.find(block => block.id === input.dataset.textSide).textSide = input.value;
+          } else if (input.dataset.sizeBlock) {
+            const block = state.blocks.find(block => block.id === input.dataset.sizeBlock);
+            const index = Number(input.dataset.imageSize);
+            block.imageMeta[index] ||= { ...poolImages().find(image => image.id === block.imageIds[index]) };
+            block.imageMeta[index].size = input.value;
+          } else return;
+          notifyChange();
+        });
+
         const editorRanges = new WeakMap();
-        document.addEventListener("selectionchange", () => {
+        const editorTypingStyles = new WeakMap();
+        function selectedEditor() {
           const selection = getSelection();
-          const node = selection?.anchorNode;
+          if (!selection?.rangeCount) return null;
+          const node = selection.anchorNode;
           const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
           const editor = element?.closest("[data-editor]");
-          if (selection?.rangeCount && editor) editorRanges.set(editor, selection.getRangeAt(0).cloneRange());
-        });
-        $("#block-list").addEventListener("mousedown", (event) => {
-          if (event.target.closest("[data-command]")) event.preventDefault();
-        });
-        $("#block-list").addEventListener("click", (event) => {
-          const button = event.target.closest("[data-command]");
-          if (!button) return;
-          const editor = $("[data-editor]", button.closest(".language-editor"));
-          const editorRange = editorRanges.get(editor);
-          editor.focus();
-          if (editorRange && editor.contains(editorRange.commonAncestorContainer)) {
-            const selection = getSelection(); selection.removeAllRanges(); selection.addRange(editorRange);
+          return editor && editor.contains(selection.getRangeAt(0).commonAncestorContainer) ? editor : null;
+        }
+        function rememberEditorSelection(editor) {
+          lastEditorBlockId = editor.dataset.editor;
+          if (selectedEditor() !== editor) return;
+          const range = getSelection().getRangeAt(0);
+          editorRanges.set(editor, range.cloneRange());
+          if (range.collapsed && document.activeElement === editor) editorTypingStyles.set(editor, {
+            bold: document.queryCommandState("bold"), italic: document.queryCommandState("italic"),
+            color: paletteColor(document.queryCommandValue("foreColor")),
+          });
+        }
+        function colorKey(value) {
+          const lower = String(value).toLowerCase().trim();
+          const rgb = lower.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+          const color = rgb ? `#${rgb.slice(1).map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}` : lower;
+          return Object.keys(textColors).find(key => textColors[key] === color || presentation.legacyColors[key] === color);
+        }
+        function paletteColor(value) {
+          const lower = String(value).toLowerCase();
+          if (colorKey(lower)) return textColors[colorKey(lower)];
+          const rgb = lower.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+          const color = rgb ? `#${rgb.slice(1).map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}` : "";
+          return colorKey(color) ? textColors[colorKey(color)] : "";
+        }
+        function updateTextToolbar(editor) {
+          if (selectedEditor() !== editor || document.activeElement !== editor) return;
+          const toolbar = $(".toolbar", editor.closest(".language-editor"));
+          const block = document.queryCommandValue("formatBlock").toLowerCase();
+          for (const button of $$("[data-command]", toolbar)) {
+            const command = button.dataset.command;
+            if (["bold", "italic", "insertUnorderedList"].includes(command)) button.setAttribute("aria-pressed", String(document.queryCommandState(command)));
+            else if (command === "formatBlock") button.setAttribute("aria-pressed", String(block === button.dataset.value));
           }
-          document.execCommand(button.dataset.command, false, button.dataset.value || null);
-          const block = state.blocks.find((item) => item.id === editor.dataset.editor);
+          const color = paletteColor(document.queryCommandValue("foreColor"));
+          $("[data-text-color]", toolbar).value = Object.values(textColors).includes(color) ? color : textColors.black;
+        }
+        function commitEditorInput(editor) {
+          const block = state.blocks.find(item => item.id === editor.dataset.editor);
           if (block) block[editor.dataset.language === "en" ? "htmlEn" : "html"] = sanitizeHtml(editor.innerHTML);
+          rememberEditorSelection(editor);
+          updateTextToolbar(editor);
           notifyChange(true);
+        }
+        function textSelectionOffsets(editor, range) {
+          if (!range || !editor.contains(range.commonAncestorContainer)) return null;
+          const prefix = document.createRange(); prefix.selectNodeContents(editor);
+          prefix.setEnd(range.startContainer, range.startOffset);
+          const start = prefix.toString().length;
+          prefix.setEnd(range.endContainer, range.endOffset);
+          return [start, prefix.toString().length];
+        }
+        function restoreTextOffsets(editor, offsets) {
+          if (!offsets) return;
+          const point = offset => {
+            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+              if (offset <= node.length) return [node, offset];
+              offset -= node.length;
+            }
+            return [editor, editor.childNodes.length];
+          };
+          const range = document.createRange();
+          range.setStart(...point(offsets[0])); range.setEnd(...point(offsets[1]));
+          const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+        }
+        function restoreTypingStyles(typing) {
+          if (!typing) return;
+          for (const name of ["bold", "italic"]) if (document.queryCommandState(name) !== typing[name]) document.execCommand(name);
+          if (Object.values(textColors).includes(typing.color) && paletteColor(document.queryCommandValue("foreColor")) !== typing.color) document.execCommand("foreColor", false, typing.color);
+        }
+        function runTextCommand(control, command, value = null) {
+          const editor = $("[data-editor]", control.closest(".language-editor"));
+          const alreadyEditing = document.activeElement === editor && selectedEditor() === editor;
+          if (alreadyEditing) rememberEditorSelection(editor);
+          const range = editorRanges.get(editor);
+          const typing = editorTypingStyles.get(editor);
+          // Do not refocus an already active editor: that can reset pending typing styles.
+          if (!alreadyEditing) editor.focus({ preventScroll: true });
+          const selection = getSelection();
+          if (!alreadyEditing && range && editor.contains(range.commonAncestorContainer)) {
+            selection.removeAllRanges(); selection.addRange(range);
+          } else if (selectedEditor() !== editor) {
+            const end = document.createRange(); end.selectNodeContents(editor); end.collapse(false);
+            selection.removeAllRanges(); selection.addRange(end);
+          }
+          document.execCommand("styleWithCSS", false, false);
+          // A native select temporarily owns focus. Restore pending collapsed-caret
+          // styles as well as the range before applying its chosen color.
+          if (!alreadyEditing && range?.collapsed && typing) {
+            restoreTypingStyles(typing);
+          }
+          const offsets = ["formatBlock", "insertUnorderedList"].includes(command) ? textSelectionOffsets(editor, selection.getRangeAt(0)) : null;
+          document.execCommand(command, false, value);
+          if (command === "removeFormat" && getSelection().getRangeAt(0).collapsed) {
+            // Native removeFormat is a no-op for a collapsed caret in Chromium.
+            for (const name of ["bold", "italic"]) if (document.queryCommandState(name)) document.execCommand(name);
+            document.execCommand("foreColor", false, textColors.black);
+          }
+          // Native block/list transformations can place the caret at the start.
+          // Restore its text position without rewriting DOM or discarding undo.
+          if (offsets) {
+            const current = getSelection();
+            const after = current?.rangeCount ? textSelectionOffsets(editor, current.getRangeAt(0)) : null;
+            if (!after || offsets.some((value, index) => value !== after[index])) restoreTextOffsets(editor, offsets);
+            if (offsets[0] === offsets[1]) restoreTypingStyles(typing);
+          }
+          commitEditorInput(editor);
+        }
+        document.addEventListener("selectionchange", () => {
+          const editor = selectedEditor();
+          if (editor) { rememberEditorSelection(editor); updateTextToolbar(editor); }
+        });
+        for (const name of ["input", "keyup", "mouseup", "focusin"]) $("#block-list").addEventListener(name, event => {
+          const editor = event.target.closest("[data-editor]");
+          if (editor) { rememberEditorSelection(editor); updateTextToolbar(editor); }
+        });
+        $("#block-list").addEventListener("mousedown", event => {
+          const control = event.target.closest("[data-command], [data-text-color]");
+          if (!control) return;
+          const editor = $("[data-editor]", control.closest(".language-editor"));
+          rememberEditorSelection(editor);
+          if (control.matches("button")) event.preventDefault();
+        });
+        $("#block-list").addEventListener("click", event => {
+          const button = event.target.closest("[data-command]");
+          if (button) runTextCommand(button, button.dataset.command, button.dataset.value || null);
+        });
+        $("#block-list").addEventListener("change", event => {
+          if (event.target.matches("[data-text-color]")) runTextCommand(event.target, "foreColor", event.target.value);
         });
 
         $("#block-list").addEventListener("click", (event) => {
@@ -1629,14 +1966,19 @@
               index + (move.dataset.blockMove === "up" ? -1 : 1),
             );
             renderBlocks();
-            updateSummary();
+            notifyChange(); focusBlock(move.dataset.id, move.dataset.blockMove);
+            structuralStatus.textContent = `Block an Position ${state.blocks.findIndex(block => block.id === move.dataset.id) + 1} verschoben.`;
           }
           if (remove) {
-            state.blocks = state.blocks.filter(
-              (block) => block.id !== remove.dataset.blockRemove,
-            );
-            renderBlocks();
-            updateSummary();
+            const index = state.blocks.findIndex(block => block.id === remove.dataset.blockRemove);
+            if (index < 0) return;
+            removedBlocks.push({ block: structuredClone(state.blocks[index]), index, previous: state.blocks[index - 1]?.id, next: state.blocks[index + 1]?.id });
+            if (removedBlocks.length > 20) removedBlocks.shift();
+            state.blocks.splice(index, 1);
+            renderBlocks(); updateUndo(); notifyChange();
+            const neighbour = state.blocks[index] || state.blocks[index - 1];
+            if (neighbour) focusBlock(neighbour.id); else $('[data-add-block="copy"]').focus();
+            structuralStatus.textContent = "Block entfernt. Mit „Letzten Block wiederherstellen“ rückgängig machen.";
           }
         });
 
@@ -1672,9 +2014,11 @@
           const to = state.blocks.findIndex(
             (block) => block.id === target.dataset.blockId,
           );
+          const movedId = state.draggedBlockId;
           moveItem(state.blocks, from, to);
           renderBlocks();
-          updateSummary();
+          notifyChange(); focusBlock(movedId);
+          structuralStatus.textContent = `Block an Position ${to + 1} verschoben.`;
           state.draggedBlockId = "";
         });
 
@@ -1682,9 +2026,11 @@
         function resetEditor() {
           if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
           state.images.forEach(image => URL.revokeObjectURL(image.url));
+          removedBlocks.length = 0; updateUndo();
           $("#vehicle-form").reset();
           for (const field of Object.values(fields)) delete field.dataset.touched;
-          Object.assign(state, { mode: "new", original: null, cardFile: null, cardName: "", cardUrl: "", images: [], blocks: [], leadImageId: "", autoOrderValue: null, slugWasEdited: false });
+          Object.assign(state, { mode: "new", watermarkEnabled: false, original: null, cardFile: null, cardName: "", cardUrl: "", images: [], blocks: [], leadImageId: "", autoOrderValue: null, slugWasEdited: false });
+          $("#watermark-all").checked = false;
           fields.slug.readOnly = false;
           $("#refresh-slug").disabled = false;
           fields.autoOrder.checked = true;
@@ -1694,6 +2040,47 @@
           fields.dateModified.value = localDate();
           showCard(); renderImages(); renderBlocks(); updateSummary();
         }
+        const preparedWatermarkFiles = new WeakMap();
+        function validateSnapshotSize(recordText, images) {
+          const jsonSize = new TextEncoder().encode(recordText).length;
+          if (jsonSize > 2 * 1024 ** 2 || images.length + 1 > 2000 || images.some(image => image.file.size > maxImageBytes) || jsonSize + images.reduce((sum, image) => sum + image.file.size, 0) > maxExportBytes) throw new Error("Das Fahrzeug überschreitet die Dateigrenzen: 2 MiB JSON, 50 MiB je Bild, 2000 Dateien oder 512 MiB insgesamt. Bitte Inhalte reduzieren.");
+        }
+        async function prepareOutputSnapshot(snapshot) {
+          if (!snapshot.watermarkEnabled || snapshot.watermarkPrepared) return snapshot;
+          if (typeof window.VehicleWatermark !== "function") throw new Error(window.VehicleWebsiteTools
+            ? "Die Wasserzeichen-Funktion wurde nicht geladen. Bitte die Website-Werkzeuge neu starten und die Editorseite neu laden."
+            : "Die Wasserzeichen-Funktion wurde nicht geladen. Bitte watermark.js im selben Ordner wie index.html ablegen und den Editor neu öffnen.");
+          // Only final output creates derived files. The editor keeps original
+          // bytes, filenames and preview URLs even if preparation fails.
+          const names = new Map(snapshot.images.map(image => [image.name, image.name.replace(/\.[^.]+$/, ".webp")]));
+          if (new Set([...names.values()].map(name => name.toLowerCase())).size !== snapshot.images.length) throw new Error("Bildnamen kollidieren nach der WebP-Konvertierung. Bitte unterschiedliche Bildnamen verwenden.");
+          const images = [];
+          for (const [index, image] of snapshot.images.entries()) {
+            setStatus([], `Wasserzeichen werden erstellt … ${index + 1} / ${snapshot.images.length}`);
+            let file = preparedWatermarkFiles.get(image.file);
+            if (!file) {
+              file = await window.VehicleWatermark(image.file);
+              if (file.type !== "image/webp") throw new Error("Wasserzeichen konnte nicht als WebP erstellt werden. Bitte erneut versuchen.");
+              await checkImage(file);
+              preparedWatermarkFiles.set(image.file, file);
+            }
+            images.push({ name: names.get(image.name), file });
+          }
+          const record = JSON.parse(snapshot.recordText);
+          const imagePath = path => {
+            const name = names.get(path.slice(2));
+            if (!name) throw new Error(`Bilddatei fehlt: ${path}`);
+            return `./${name}`;
+          };
+          record.cardImage = imagePath(record.cardImage);
+          record.leadImage = imagePath(record.leadImage);
+          for (const block of record.blocks) if (block.type === "gallery") for (const image of block.images) image.src = imagePath(image.src);
+          validateRecord(record);
+          const recordText = `${JSON.stringify(record, null, "\t")}\n`;
+          validateSnapshotSize(recordText, images);
+          return { ...snapshot, record, recordText, images, watermarkPrepared: true };
+        }
+
         function editorSnapshot() {
           const { errors } = validate();
           if (errors.length) throw new Error(errors.join("\n"));
@@ -1702,11 +2089,10 @@
           validateRecord(record);
           const recordText = `${JSON.stringify(record, null, "\t")}\n`;
           const images = [{ name: cardName(), file: state.cardFile }, ...state.images.map(image => ({ name: image.outputName, file: image.file }))];
-          const jsonSize = new TextEncoder().encode(recordText).length;
-          if (jsonSize > 2 * 1024 ** 2 || images.length + 1 > 2000 || images.some(image => image.file.size > 50 * 1024 ** 2) || jsonSize + images.reduce((sum, image) => sum + image.file.size, 0) > 512 * 1024 ** 2) throw new Error("Das Fahrzeug überschreitet die Dateigrenzen: 2 MiB JSON, 50 MiB je Bild, 2000 Dateien oder 512 MiB insgesamt. Bitte Inhalte reduzieren.");
-          return { record, recordText, images };
+          validateSnapshotSize(recordText, images);
+          return { record, recordText, images, watermarkEnabled: state.watermarkEnabled };
         }
-        workflow = window.VehicleProjectUI({ state, fields, showStep, showEditor, resetEditor, importVehicle, validateRecord, checkImage, createAstro, editorSnapshot, updateSummary, validate, setBusy });
+        workflow = window.VehicleDemoUI({ state, fields, showStep, showEditor, resetEditor, importVehicle, validateRecord, checkImage, createAstro, editorSnapshot, prepareOutputSnapshot, updateSummary, validate, setBusy });
         window.VehicleWebsiteTools?.attach(workflow?.websiteTools);
         showStep("project");
         updateSummary();

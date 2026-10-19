@@ -3,16 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Oldtimer-Fahrzeugeditor</title>
+    <title>Oldtimer-Fahrzeugeditor · Übungsdemo</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="workflow.css" />
 
   </head>
   <body>
     <main id="editor-shell">
+      <p class="demo-notice"><strong>Übungsdemo</strong> · Keine Verbindung zur Website. Bilder und Eingaben bleiben in diesem Browser-Tab. Beim Neuladen gehen Übungsstände verloren. Eine Übungs-ZIP können Sie herunterladen.</p>
       <nav class="step-nav" aria-label="Bearbeitungsschritte">
         <ol>
-          <li><button type="button" data-step-target="project"><span class="step-nav__index">01</span><span class="step-nav__label">Projektordner</span><span class="step-nav__status" data-step-status="project">Offen</span></button></li>
+          <li><button type="button" data-step-target="project"><span class="step-nav__index">01</span><span class="step-nav__label">Demo starten</span><span class="step-nav__status" data-step-status="project">Offen</span></button></li>
           <li><button type="button" data-step-target="selection"><span class="step-nav__index">02</span><span class="step-nav__label">Fahrzeug auswählen</span><span class="step-nav__status" data-step-status="selection">Offen</span></button></li>
           <li>
             <button type="button" data-step-target="vehicle" aria-current="step">
@@ -46,13 +49,14 @@
       </nav>
 
       <section class="panel project-panel step-panel" data-step="project" aria-labelledby="project-title">
-        <div class="panel__head"><h1 id="project-title">Website-Projektordner auswählen</h1></div>
+        <div class="panel__head"><h1 id="project-title">Den Fahrzeugeditor ausprobieren</h1></div>
         <div class="panel__body">
-          <p>Wählen Sie den vollständigen Website-Ordner mit „src“ und „public“, nicht nur den Ordner „Projekte“. Alle Dateien bleiben auf diesem Computer.</p>
-          <button class="btn btn--primary" id="choose-project" type="button">Projektordner auswählen</button>
-          <p id="project-name" class="hint"></p>
+          <p>Üben Sie mit drei fiktiven Beispielfahrzeugen oder legen Sie ein eigenes Fahrzeug an. Ein Website-Ordner ist nicht nötig.</p>
+          <p>Bearbeiten Sie deutsche und englische Texte, laden Sie eigene Bilder und ordnen Sie die Inhalte. Die Entwurfsansicht zeigt nur Ihr Übungslayout. Speichern im Website-Projekt, Löschen echter Fahrzeuge, Website-Vorschau, Erstellen und Veröffentlichen sind hier nicht verfügbar.</p>
+          <p>Mit „Übungsstand merken“ bleibt ein Fahrzeug bis zum Neuladen in der Übungsliste erhalten. Die optionale ZIP sichert nur einen Download auf Ihrem Computer; sie ändert keine Website. Es gibt keine automatische Speicherung und keinen Upload Ihrer Inhalte.</p>
+          <button class="btn btn--primary" id="choose-project" type="button">Demo starten</button>
+          <p id="project-name" class="hint">Nur fiktive Beispieldaten · keine echten Fahrzeugdaten</p>
           <p id="project-feedback" role="status" aria-live="polite"></p>
-          <button class="btn" id="recover-project" type="button" hidden>Unterbrochenen Speichervorgang wiederherstellen</button>
         </div>
       </section>
       <section class="panel project-panel step-panel" data-step="selection" aria-labelledby="selection-title" hidden>
@@ -61,7 +65,7 @@
           <div class="selection-actions">
             <div class="field"><label for="category-filter">Kategorie</label><select id="category-filter"><option value="">Alle Kategorien</option><option value="aktuelle-projekte">Aktuelle Projekte</option><option value="vergangene-projekte">Abgeschlossene Projekte</option><option value="fahrzeugangebote">Fahrzeugangebote</option></select></div>
             <button class="btn btn--primary" id="start-new" type="button">Neues Fahrzeug</button>
-            <button class="btn btn--secondary" id="refresh-project" type="button">Liste aktualisieren</button>
+            <button class="btn btn--secondary" id="refresh-project" type="button">Demo zurücksetzen</button>
           </div>
           <p id="selection-feedback" role="status" aria-live="polite"></p>
           <div class="vehicle-list" id="vehicle-list"></div>
@@ -92,7 +96,7 @@
                 <select id="category" required>
                   <option value="aktuelle-projekte">Aktuelle Projekte</option>
                   <option value="vergangene-projekte">
-                    Vergangene Projekte
+                    Abgeschlossene Projekte
                   </option>
                   <option value="fahrzeugangebote">Fahrzeugangebote</option>
                 </select>
@@ -188,7 +192,7 @@
                   aria-readonly="true"
                 />
                 <p class="hint">
-                  Neue Fahrzeuge und Kategoriewechsel verwenden die Seiten-URL. Bestehende Fahrzeuge behalten ihre ursprüngliche Quell-URL.
+                  Beispieladresse für die spätere Website. Diese Demo legt dort keine Seite an. Bestehende Übungsfahrzeuge behalten ihre ursprüngliche Beispieladresse.
                 </p>
               </div>
               <div class="field field--wide">
@@ -270,6 +274,7 @@
               >
               <input id="lead-alt" type="text" required />
             </div>
+            <label class="watermark-control"><input type="checkbox" id="watermark-all" /> Wasserzeichen für alle Bilder</label>
             <div id="image-list" class="image-list" aria-live="polite">
               <div class="empty">Noch keine Galeriebilder importiert.</div>
             </div>
@@ -286,6 +291,7 @@
               <button class="btn" type="button" data-add-block="copy">
                 + Textblock
               </button>
+              <button class="btn" type="button" data-add-block="image-text">+ Text neben Bild</button>
               <button class="btn" type="button" data-add-block="gallery">
                 + Galerieblock
               </button>
@@ -305,8 +311,8 @@
           <div class="panel__head"><h2>Prüfen &amp; exportieren</h2></div>
           <div class="panel__body">
             <div class="review-state" id="review-state" aria-live="polite"></div>
-            <button class="btn btn--secondary" id="open-page-preview" type="button">Fahrzeugseite ansehen</button>
-            <p class="hint">Vorschau von Lesereihenfolge, Bildern und Bildunterschriften. Schrift und Seitenrahmen sind vereinfacht; die Vorschau ersetzt nicht die Prüfung vor der Übernahme.</p>
+            <button class="btn btn--secondary" id="open-page-preview" type="button">Entwurf ansehen</button>
+            <p class="hint">Lokale Ansicht Ihres Entwurfs in Deutsch und Englisch sowie für Desktop, Tablet und Mobil. Dies ist keine Vorschau der echten Website.</p>
             <dl class="summary">
               <div>
                 <dt>Kategorie</dt>
@@ -334,63 +340,28 @@ aktuelle-projekte/
 └── …</pre
             >
             <div id="save-review" aria-live="polite"></div>
-            <button class="btn btn--primary" id="prepare-save" type="button">Änderungen prüfen</button>
-            <p class="hint">Die ZIP-Datei enthält Quelldateien. Die hochladbare Website (dist) muss separat erstellt werden.</p>
-            <p class="export-note">Die ZIP-Datei wird lokal erstellt und vor dem Download automatisch gegen den ausgewählten Projektordner geprüft. Der Editor übernimmt keine Fahrzeugdateien ins Projekt.</p>
+            <button class="btn btn--primary" id="prepare-save" type="button">Übungsdaten prüfen</button>
+            <button class="btn btn--secondary" id="remember-demo" type="button">Übungsstand merken</button>
+            <p class="hint">Die Prüfung betrifft nur die Übungsdaten. Ein Abgleich mit echten Website-Dateien ist in dieser Demo nicht möglich.</p>
+            <p class="export-note">Optional: Laden Sie Ihre Übungsdaten und Bilder als ZIP herunter. Der Download speichert keinen Übungsstand in der Liste und verändert keine Website.</p>
             <button
               class="btn btn--secondary generate"
               id="generate"
               type="button"
             >
-              ZIP erstellen
+              Übungs-ZIP herunterladen
             </button>
             <p class="status" id="status" role="status" aria-live="polite">
-              Noch nicht geprüft
+              Noch keine ZIP erstellt.
             </p>
             <details class="after-export" id="after-export" hidden>
-              <summary>Fahrzeug ins Website-Projekt übernehmen</summary>
-              <ol>
-                <li>ZIP in einen separaten Ordner entpacken.</li>
-                <li>Im Terminal den Website-Ordner öffnen und diesen Befehl ausführen:</li>
-                <li><code id="transfer-command">npm run vehicles:transfer</code></li>
-                <li>Den entpackten Ordner ins Terminal ziehen und Eingabetaste drücken. Bei einem bestehenden Fahrzeug das angezeigte Original mit seiner Nummer auswählen.</li>
-                <li>Im Terminal mit <code>JA</code> bestätigen. Die Übernahme erstellt eine Sicherung und bereitet die Vorschau vor. Nicht selbst kopieren oder alte Fahrzeugdateien löschen.</li>
-                <li>Zum Ansehen <code>npm run dev</code> im Website-Ordner starten. Eine laufende Vorschau wird nach der Übernahme automatisch neu gestartet; danach die Browserseite neu laden.</li>
-                <li>Danach <code>npm run build</code> ausführen. Für die GitHub-Pages-Vorschau <code>npm run build:pages</code> verwenden. Die Fahrzeugliste im Editor anschließend aktualisieren.</li>
-              </ol>
-              <p>Der Assistent erkennt die neue Kategorie aus der ZIP. Bestehende Fahrzeuge werden erst nach Ihrer Auswahl und Bestätigung ersetzt. Bei einem Kategoriewechsel entfernt er das alte Fahrzeugpaar und richtet Weiterleitungen für deutsche und englische URLs ein. Die ZIP allein enthält keine Weiterleitungen.</p>
-              <p>Der Build aktualisiert die lokale Website-Ausgabe, veröffentlicht sie aber nicht.</p>
+              <summary>Übungs-ZIP heruntergeladen – was nun?</summary>
+              <p>Die ZIP enthält Ihre Fahrzeugdaten und Bilder zur lokalen Aufbewahrung oder Weitergabe. Sie wurde nicht hochgeladen und hat die Website nicht verändert.</p>
+              <p>Zum Weiterüben hierbleiben. Mit „Übungsstand merken“ übernehmen Sie den Entwurf in die Übungsliste dieses Tabs. Beim Neuladen wird die Demo zurückgesetzt.</p>
             </details>
           </div>
         </section>
-        <section class="panel website-tools" id="website-tools" aria-labelledby="tools-title" hidden>
-          <div class="panel__head"><h2 id="tools-title">Website aktualisieren</h2></div>
-          <div class="panel__body">
-            <p class="hint" id="tools-project"></p>
-            <ol class="website-tools__flow">
-              <li><h3>1. Fahrzeug speichern</h3><p>Der aktuelle Entwurf wird automatisch geprüft und nach Ihrer Bestätigung im richtigen Fahrzeugordner gespeichert. Eine Sicherung bleibt erhalten.</p><button class="btn btn--primary" id="tools-transfer" type="button" disabled>Im Projekt speichern</button><p class="hint" id="tools-export-hint">Bitte alle Pflichtangaben vervollständigen.</p></li>
-              <li><h3>2. Website ansehen</h3><p>Die Vorschau zeigt die übernommenen Quelldateien. Nach der Übernahme die Browserseite neu laden.</p><div class="website-tools__buttons"><button class="btn btn--secondary" id="tools-preview-start" type="button" disabled>Website-Vorschau starten</button><button class="btn btn--secondary" id="tools-preview-stop" type="button" hidden>Vorschau stoppen</button><a class="btn btn--secondary" id="tools-preview-link" target="_blank" rel="noreferrer" hidden>Website-Vorschau öffnen ↗</a></div></li>
-              <li><h3>3. Website bereitstellen</h3><p>Die Vorschau vor dem Erstellen stoppen. „Website erstellen“ erzeugt die Produktionsdateien in <code>dist/</code>. Die Veröffentlichung für GitHub Pages erstellt und veröffentlicht separat.</p><div class="website-tools__buttons"><button class="btn btn--secondary" id="tools-build" type="button" disabled>Website erstellen</button><button class="btn btn--secondary" id="tools-deploy" type="button" disabled>GitHub Pages veröffentlichen</button></div><p class="hint">Die Veröffentlichung für GitHub Pages aktualisiert nicht den Produktionshost.</p></li>
-            </ol>
-            <div class="website-tools__activity" aria-labelledby="tools-activity-title">
-              <p id="tools-status" role="status" aria-live="polite">Verbindung wird geprüft …</p>
-              <h3 id="tools-activity-title" tabindex="-1">Nächster Schritt</h3>
-              <p id="tools-hint">Speichern prüft den aktuellen Entwurf. Original, Ziel und Bestätigung erscheinen hier.</p>
-              <p id="tools-message" role="alert" hidden></p>
-              <form id="tools-prompt" hidden>
-                <fieldset id="tools-choices" hidden><legend>Genaues Fahrzeug auswählen</legend><div id="tools-choice-list"></div></fieldset>
-                <div id="tools-text-answer"><label id="tools-answer-label" for="tools-answer"></label><input id="tools-answer" autocomplete="off"></div>
-                <div class="website-tools__buttons"><button class="btn btn--primary" id="tools-submit" type="submit">Weiter</button><button class="btn btn--secondary" id="tools-cancel" type="button">Abbrechen</button></div>
-              </form>
-              <p id="tools-upload-progress" role="status" hidden></p>
-              <details id="tools-task-detail" hidden><summary>Verlauf der Aktion und Sicherung</summary><pre id="tools-task-log" tabindex="0"></pre></details>
-              <details id="tools-preview-detail" hidden><summary>Vorschau-Meldungen</summary><pre id="tools-preview-log" tabindex="0"></pre></details>
-              <button class="btn btn--secondary" id="tools-refresh" type="button" hidden>Fahrzeugliste aktualisieren</button>
-            </div>
-            <details class="website-tools__maintenance"><summary>Weitere Projektaktionen</summary><p>Ein Fahrzeug aus diesem Website-Projekt entfernen. Die genaue Route wird vor der Bestätigung angezeigt; eine Sicherung bleibt erhalten.</p><button class="btn btn--secondary" id="tools-delete" type="button" disabled>Fahrzeug zum Löschen suchen</button></details>
-            <p class="hint">Alle Fahrzeugänderungen bleiben zunächst lokal. Zum Beenden das Startfenster mit Strg+C schließen.</p>
-          </div>
-        </section>
+
       </aside>
 
       <div class="step-actions" aria-label="Schrittnavigation">
@@ -402,7 +373,7 @@ aktuelle-projekte/
 
     <dialog id="page-preview-dialog" aria-labelledby="page-preview-title">
       <div class="preview-toolbar">
-        <h2 id="page-preview-title">Vorschau der Fahrzeugseite</h2>
+        <h2 id="page-preview-title">Entwurfsansicht · Übungsdemo</h2>
         <label>Sprache <select id="preview-language"><option value="de">Deutsch</option><option value="en">Englisch</option></select></label>
         <label>Ansicht <select id="preview-width"><option value="1200">Desktop · 1200 px</option><option value="800">Tablet · 800 px</option><option value="390">Mobil · 390 px</option></select></label>
         <button class="btn btn--small" id="close-page-preview" type="button">Schließen</button>
@@ -411,10 +382,10 @@ aktuelle-projekte/
       <div id="preview-stage"><iframe id="page-preview-frame" title="Fahrzeugseite" sandbox="allow-same-origin"></iframe></div>
     </dialog>
 
-    <script src="project-access.js"></script>
-    <script src="project-save.js"></script>
-    <script src="project-ui.js"></script>
-    <script src="website-tools.js"></script>
+    <script src="vehicle-presentation.js"></script>
+    <script src="watermark.js"></script>
+    <script src="demo-data.js"></script>
+    <script src="demo-ui.js"></script>
     <script src="editor.js"></script>
   </body>
 </html>
