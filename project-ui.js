@@ -10,11 +10,13 @@ window.VehicleProjectUI = function (api) {
   const fileIds = new WeakMap(); let nextFile = 0;
   const fileId = file => { if (!file) return null; if (!fileIds.has(file)) fileIds.set(file, ++nextFile); return fileIds.get(file); };
   function fingerprint() {
-    return JSON.stringify({ fields: Object.fromEntries(Object.entries(api.fields).map(([key, field]) => [key, [field.value, field.checked]])), card: fileId(api.state.cardFile), cardName: api.state.cardName, lead: api.state.leadImageId, blocks: api.state.blocks, images: api.state.images.map(({ url, ...image }) => ({ ...image, file: fileId(image.file) })) });
+    return JSON.stringify({ fields: Object.fromEntries(Object.entries(api.fields).map(([key, field]) => [key, [field.value, field.checked]])), watermarkEnabled: api.state.watermarkEnabled, card: fileId(api.state.cardFile), cardName: api.state.cardName, lead: api.state.leadImageId, blocks: api.state.blocks, images: api.state.images.map(({ url, ...image }) => ({ ...image, file: fileId(image.file) })) });
   }
   const dirty = () => selected && fingerprint() !== baseline;
   function invalidateReview() {
-    if (!review) return;
+    if (review || !$('#after-export').hidden || /ZIP mit|gespeichert/.test($('#status').textContent)) $('#status').textContent = 'Entwurf geändert. Bitte eine neue ZIP erstellen.';
+    $('#after-export').hidden = true;
+    if (!review && !['checking', 'saved'].includes($('#save-review').dataset.reviewState)) return;
     review = null;
     $('#save-review').dataset.reviewState = 'stale';
     $('#save-review').textContent = 'Die Eingaben wurden geändert. Die ZIP-Ausgabe prüft sie erneut.';
@@ -25,6 +27,7 @@ window.VehicleProjectUI = function (api) {
     $('#save-review').dataset.reviewState = 'idle';
     feedback($('#save-review'), 'Noch nicht geprüft.');
     $('#after-export').hidden = true;
+    $('#status').textContent = 'Noch keine ZIP erstellt.';
   }
   const discard = () => !dirty() || confirm("Ungespeicherte Änderungen verwerfen und ein anderes Fahrzeug oder Projekt öffnen?");
   function feedback(element, message, error = false) {
@@ -75,7 +78,7 @@ window.VehicleProjectUI = function (api) {
       const date = document.createElement('time'); date.dateTime = item.record.dateModified; date.textContent = item.record.dateModified.split('-').reverse().join('.');
       button.append(name, date); button.addEventListener('click', () => openVehicle(item)); root.append(button);
     }
-    feedback($('#selection-feedback'), rows.length ? `${rows.length} Fahrzeuge` : 'In dieser Kategorie sind noch keine Fahrzeuge vorhanden.');
+    feedback($('#selection-feedback'), rows.length ? `${rows.length} ${rows.length === 1 ? "Fahrzeug" : "Fahrzeuge"}` : 'In dieser Kategorie sind noch keine Fahrzeuge vorhanden.');
   }
   function openStep(step) {
     // Navigation is restored after an async operation, not while its controls are locked.
@@ -148,9 +151,12 @@ window.VehicleProjectUI = function (api) {
     const summary = document.createElement('p');
     summary.textContent = `Projekt: ${project.root.name}\n${value.from ? `Original: /projekte/${value.from}/\n` : 'Neues Fahrzeug\n'}Ziel: /projekte/${value.key}/\n\n${value.summary.length ? value.summary.map(entry => `${entry.action}: ${entry.path}`).join('\n') : 'Keine Dateiänderungen.'}`;
     root.append(summary);
+    const result = document.createElement('strong'); result.textContent = 'Projektprüfung erfolgreich.'; root.prepend(result);
     root.dataset.reviewState = 'ready';
+    if ($('#after-export').hidden) $('#status').textContent = 'Noch keine ZIP erstellt.';
     root.classList.remove('feedback-error'); root.setAttribute('role', 'status');
-    const notice = document.createElement('p'); notice.textContent = window.VehicleWebsiteTools ? 'Die Prüfung verändert keine Projektdateien. „Im Projekt speichern“ bereitet den aktuellen Entwurf automatisch vor. Original und Ziel werden vor der Bestätigung angezeigt. Erst JA speichert die geprüften Dateien mit Sicherung. Vorschau, Erstellen und Veröffentlichen bleiben separate Schritte.' : value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
+    const notice = document.createElement('p'); notice.textContent = window.VehicleWebsiteTools ? 'Die Prüfung verändert keine Projektdateien. „Im Projekt speichern“ bereitet den aktuellen Entwurf automatisch vor. Original und Ziel werden vor der Bestätigung angezeigt. Erst „Speichern bestätigen“ speichert die geprüften Dateien mit Sicherung. Vorschau, Erstellen und Veröffentlichen bleiben separate Schritte.' : value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
+    for (const warning of api.validate().warnings || []) { const hint = document.createElement('p'); hint.textContent = warning; root.append(hint); }
     if ($('#transfer-command')) $('#transfer-command').textContent = 'npm run vehicles:transfer';
   }
   async function prepareExport(snapshot) {
@@ -165,6 +171,7 @@ window.VehicleProjectUI = function (api) {
       review = checked; reviewFingerprint = stamp; renderReview(review);
       return checked;
     } catch (error) {
+      if (stamp !== fingerprint()) throw error;
       $('#save-review').dataset.reviewState = 'error';
       feedback($('#save-review'), error.message, true);
       throw error;
@@ -181,17 +188,21 @@ window.VehicleProjectUI = function (api) {
     context: () => ({ ready: !!project && selected && !recoveryBlocksCurrent, busy: api.state.busy, stale: toolsStale, valid: api.validate().errors.length === 0 }),
     async prepareTransfer() {
       if (toolsStale) throw new Error('Bitte zuerst die Fahrzeugliste aktualisieren.');
-      const snapshot = api.editorSnapshot();
+      const draft = api.editorSnapshot();
+      const stamp = fingerprint();
       api.updateSummary();
+      const snapshot = await api.prepareOutputSnapshot(draft);
+      if (stamp !== fingerprint()) throw new Error('Die Eingaben wurden während der Vorbereitung geändert. Bitte erneut speichern.');
       const checked = await prepareExport(snapshot);
-      transferFingerprint = fingerprint();
+      transferFingerprint = stamp;
       return { snapshot, from: checked.from || null, project: { name: project.root.name, snapshot: project.baseline }, page: api.createAstro(snapshot.record.category, snapshot.record.slug) };
     },
     setBusy(value) { api.setBusy(value, { websiteTools: true }); },
     changed(name) {
       invalidateReview(); toolsStale = true;
       if (name === 'transfer' && transferFingerprint === fingerprint()) baseline = fingerprint();
-      $('#save-review').dataset.reviewState = 'stale';
+      $('#save-review').dataset.reviewState = name === 'transfer' ? 'saved' : 'stale';
+      $('#status').textContent = name === 'transfer' ? 'Fahrzeug im Projekt gespeichert.' : 'Projekt geändert. Bitte vor einem ZIP-Export die Fahrzeugliste aktualisieren.';
       feedback($('#save-review'), name === 'transfer' ? 'Fahrzeug im Projekt gespeichert. Die Website-Vorschau zeigt die gespeicherten Dateien. Vor weiteren Änderungen bitte die Fahrzeugliste aktualisieren.' : 'Das Website-Projekt wurde geändert. Der Entwurf bleibt erhalten; bitte vor weiteren Änderungen die Fahrzeugliste aktualisieren.');
       update();
     },

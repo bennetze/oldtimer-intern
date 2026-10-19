@@ -75,6 +75,9 @@
       document.getElementById('choose-project').focus();
     }
   }
+  function saveApproval(task) {
+    return task?.name === 'transfer' && task.prompt?.kind === 'approval';
+  }
   function render(next) {
     state = next; controls();
     $('project').textContent = 'Website-Projekt des Startprogramms: ' + next.project;
@@ -100,7 +103,7 @@
     $('task-log').textContent = task?.log || '';
     $('activity-title').textContent = task ? names[task.name] : 'Nächster Schritt';
     $('status').textContent = uploadBusy ? 'Fahrzeug wird vorbereitet' : task?.prompt ? 'Ihre Auswahl' : task?.status === 'running' ? 'Läuft …' : task?.status === 'error' ? 'Bitte prüfen' : task?.status === 'warning' ? 'Vorschau prüfen' : task ? 'Abgeschlossen' : next.preview.running ? 'Vorschau läuft' : 'Bereit';
-    $('hint').textContent = task?.prompt?.question || (task?.status === 'running' ? 'Die Aktion läuft. Dieses Fenster offen lassen.' : task?.status === 'warning' ? 'Die Fahrzeugänderung wurde gespeichert. Bitte die Meldung zur Vorschau und den Sicherungspfad beachten.' : task?.status === 'error' ? 'Bitte die Ursache im Verlauf prüfen, bevor Sie die Aktion erneut starten.' : task ? 'Das Ergebnis und gegebenenfalls die Sicherung finden Sie im Verlauf.' : '„Im Projekt speichern“ bereitet den aktuellen Entwurf vor. Die geprüfte Änderung muss mit JA bestätigt werden.');
+    $('hint').textContent = saveApproval(task) ? 'Original und Ziel im Verlauf prüfen. „Speichern bestätigen“ übernimmt die geprüfte Änderung mit Sicherung.' : task?.prompt?.question || (task?.status === 'running' ? 'Die Aktion läuft. Dieses Fenster offen lassen.' : task?.status === 'warning' ? 'Die Fahrzeugänderung wurde gespeichert. Bitte die Meldung zur Vorschau und den Sicherungspfad beachten.' : task?.status === 'error' ? 'Bitte die Ursache im Verlauf prüfen, bevor Sie die Aktion erneut starten.' : task ? 'Das Ergebnis und gegebenenfalls die Sicherung finden Sie im Verlauf.' : '„Im Projekt speichern“ bereitet den aktuellen Entwurf vor. Die geprüfte Änderung anschließend mit „Speichern bestätigen“ freigeben.');
     $('prompt').hidden = !task?.prompt;
     if (!task?.prompt && promptId) {
       promptId = null;
@@ -111,7 +114,7 @@
       promptId = task.prompt.id;
       const prompt = task.prompt;
       $('choices').hidden = prompt.kind !== 'choice';
-      $('text-answer').hidden = prompt.kind === 'choice';
+      $('text-answer').hidden = prompt.kind === 'choice' || saveApproval(task);
       $('choice-list').replaceChildren();
       for (const choice of prompt.choices) {
         const label = document.createElement('label'); label.className = 'website-tools__choice';
@@ -121,9 +124,9 @@
       }
       $('answer').value = '';
       $('answer-label').textContent = prompt.kind === 'approval' ? 'Zur Bestätigung JA eingeben. Jede andere Antwort bricht ab.' : 'Suchbegriff (leer lassen: alle Fahrzeuge)';
-      $('submit').textContent = prompt.kind === 'approval' ? 'Bestätigen' : prompt.kind === 'choice' ? 'Dieses Fahrzeug auswählen' : 'Suchen';
+      $('submit').textContent = saveApproval(task) ? 'Speichern bestätigen' : prompt.kind === 'approval' ? 'Bestätigen' : prompt.kind === 'choice' ? 'Dieses Fahrzeug auswählen' : 'Suchen';
       scrollActivity();
-      (prompt.kind === 'choice' ? $('choice-list').querySelector('input') : $('answer'))?.focus({ preventScroll: true });
+      (saveApproval(task) ? $('submit') : prompt.kind === 'choice' ? $('choice-list').querySelector('input') : $('answer'))?.focus({ preventScroll: true });
     }
   }
   async function refresh() {
@@ -166,14 +169,15 @@
   }
   $('prompt').addEventListener('submit', event => {
     event.preventDefault();
-    action(() => answer(state.task.prompt.kind === 'choice' ? $('choice-list').querySelector('input:checked')?.value || '' : $('answer').value));
+    if (!state?.task?.prompt) return;
+    action(() => answer(saveApproval(state.task) ? 'JA' : state.task.prompt.kind === 'choice' ? $('choice-list').querySelector('input:checked')?.value || '' : $('answer').value));
   });
   $('cancel').addEventListener('click', () => action(() => answer(state.task.prompt.kind === 'search' ? '\u0000' : '')));
   $('refresh').addEventListener('click', () => adapter?.refresh());
   // Replace terminal-only guidance in hosted mode, preserving the file:// workflow.
   const guide = document.querySelector('#after-export ol');
   guide.replaceChildren();
-  for (const text of ['Zum Speichern des aktuellen Entwurfs „Im Projekt speichern“ wählen; die ZIP ist dafür nicht nötig.', 'Original und Ziel prüfen und das Speichern mit JA bestätigen.', 'Die Website-Vorschau unten starten oder neu laden. Danach die Fahrzeugliste aktualisieren.', 'Bei Bedarf die Website separat erstellen oder für GitHub Pages veröffentlichen.']) {
+  for (const text of ['Zum Speichern des aktuellen Entwurfs „Im Projekt speichern“ wählen; die ZIP ist dafür nicht nötig.', 'Original und Ziel prüfen und „Speichern bestätigen“ wählen.', 'Die Website-Vorschau unten starten oder neu laden. Danach die Fahrzeugliste aktualisieren.', 'Bei Bedarf die Website separat erstellen oder für GitHub Pages veröffentlichen.']) {
     const item = document.createElement('li'); item.textContent = text; guide.append(item);
   }
   window.VehicleWebsiteTools = {

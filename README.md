@@ -7,6 +7,15 @@ Open `index.html` locally, or serve the repository root with GitHub Pages.
 There is no install or build step. All paths are relative, including under
 `/oldtimer-intern/`. Only the static editor and its bundled scripts/styles run.
 
+## Repository versions
+
+- `main` contains the complete internal editor used by the Website-Werkzeuge launcher.
+- `demo` contains this standalone client version and remains the GitHub Pages source.
+
+Shared editor updates are merged from `main`; demo-specific entry, workflow and copy
+remain separate. Both branches are committed and available in the normal repository.
+Switch branches there after committing local work; an extra worktree is not required.
+
 ## GitHub Pages setup
 
 In repository Settings → Pages, select **Deploy from a branch**, choose
