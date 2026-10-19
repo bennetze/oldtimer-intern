@@ -17,7 +17,7 @@ The deliverable uses local classic scripts and styles:
 - `project-ui.js`: project selection, vehicle list, read-only review and ZIP export UI.
 
 All files must remain together. There is no install, server, package manager, or
-build step for this tool. The editor does not write vehicle source files. Building
+build step for this tool. Direct file:// review and ZIP export do not write vehicle source files. The optional local Website-Werkzeuge launcher supports confirmed checked saves and deletion. Building
 `dist` is separate. ZIP export followed by `npm run vehicles:transfer` in the
 website repository is the normal workflow.
 
@@ -52,10 +52,9 @@ independent of the website's numeric archive order. Preserve the project and fil
 while switching vehicles. Confirm before discarding unsaved work; cancellation or
 failed folder selection must not replace current work.
 
-The final step provides a read-only project review and ZIP export. There is no
-`Im Projekt speichern` button. Every export automatically checks the immutable
+Direct file:// mode provides read-only project review and ZIP export. The local launcher additionally provides `Im Projekt speichern` and deletion through the website checked importer, with exact original selection and JA confirmation. Every export automatically checks the immutable
 snapshot against the selected project for route/order collisions and changed
-source files. Never restore automatic project writes. Invalidate reviews when
+source files. Never add unconfirmed project writes. Invalidate reviews when
 inputs change. ZIP files contain only the category's paired Astro page and vehicle
 folder, not sitemap or redirects. Explain the guided transfer described below;
 the website CLI handles placement, replacement, category moves and crawler updates.
@@ -351,7 +350,7 @@ Blocks are stored and rendered in the exact order shown in the authoring UI.
 { "type": "copy", "html": "<p>Deutsch …</p>", "htmlEn": "<p>English …</p>" }
 ```
 
-Normal editorial content. The website renders it as left-aligned story copy in the
+Normal editorial content. The website renders it as centered story copy in the
 vertical reading sequence and supports
 paragraphs, headings, emphasis, links, and lists produced by the editor.
 
@@ -571,9 +570,7 @@ to each editor. Do not duplicate image bytes or create separate English ZIP fold
 
 ## Historical browser transaction recovery
 
-The direct-save UI is removed. Keep the transaction library only for read-only
-preparation and recovery of historical journals; test transaction compatibility in
-isolated fixtures, never reintroduce new project writes into the authoring flow.
+The historical browser transaction UI is removed. Keep its library for read-only preparation and historical recovery. Launcher saves use the website checked importer after explicit confirmation; never call historical apply() for new authoring saves. Test in isolated fixtures.
 
 
 Read selected project scripts as data only; never evaluate them. Fail closed if the
@@ -617,6 +614,53 @@ A lead image already used in the story supplies representative metadata without
 an additional opening photograph. A lead outside the story appears before the
 first block. The review preview uses local object URLs and sanitized content in a
 sandboxed, offline frame; desktop/tablet/mobile sizes and both languages can be
-reviewed without changing the draft. It simplifies website fonts and chrome.
+reviewed without changing the draft. It matches website Lora typography, colors, gradients, texture and story layout; surrounding navigation remains simplified.
 Gallery splitting retains image order and occurrence metadata, invalidates any
 prepared review and focuses the new gallery. It does not itself insert a text block.
+
+
+## Optional authoring presentation fields
+
+Keep `vehicle-presentation.js`, `watermark.js` and `Lora-OFL-1.1.txt` alongside the existing classic scripts.
+The font is embedded for offline canvas use. Watermarking prepares every image
+before changing draft files, emits validated WebP copies, and never edits disk
+originals. Preserve the filename/MIME correspondence for imported images too.
+
+Gallery blocks may carry `textSide` (`left` or `right`) with required bilingual
+`html`/`htmlEn` and exactly one image, representing the dedicated Text neben Bild
+block. These blocks end adjacent gallery runs. Each image occurrence may carry
+`size` (`small`, `medium`, `large`); omitted sizes retain the established layout.
+Only `span` with one fixed `om-color-black|red|green|blue|cyan|yellow|magenta` class is
+allowed for colors; arbitrary styles and other attributes remain forbidden.
+Keep import/export, preview, both website validators and localization aligned.
+
+
+The watermark checkbox records a draft preference synchronously. Keep original File
+objects, filenames and preview URLs unchanged. Create derived watermarked WebP files
+only for the immutable final ZIP/download or Website-Werkzeuge save snapshot; do not
+process during import or read-only review. Remap every output image reference and
+validate converted files, collisions and export size. Cache derived files by original
+File identity for repeat output. Conversion failure preserves the preference and draft.
+Reset on vehicle import/new draft; never claim to remove baked-in watermarks.
+
+Use a native Textfarbe dropdown with Standard first. Preserve the browser’s live
+rich-text DOM, undo history, each language’s selection and collapsed-caret typing
+styles across toolbar/dropdown focus. Capture caret offsets through native block
+and list changes. Sanitize serialized state and pasted content; never replace live
+innerHTML after routine typing or formatting commands. Keep add-block controls
+sticky within the content panel and test desktop/mobile scroll positions.
+
+
+## Authoring and presentation contract (2026-10-18)
+
+Direct `file://` use remains offline: review and ZIP export never write source files or run commands. The optional local Website-Werkzeuge launcher supports confirmed checked saves and deletion, plus separate preview, build and publication actions. Saving prepares assets and restarts a supervised preview; it does not build `dist` or publish. Publication always requires its own confirmation. Historical browser recovery remains separate from new saves.
+
+The Standard-first palette is white `#ffffff`, red `#ff9aa2`, green `#8dd9ac`, blue `#a7c7ff`, cyan `#81dbe8`, yellow `#f5dc7b` and magenta `#e6a4db`. The existing `om-color-black` class means readable Standard white. No vehicle migration is needed; old palette values normalize to the corresponding restricted class when edited. Arbitrary CSS remains forbidden and unchanged imported HTML is retained.
+
+Block removal supports **Letzten Block wiederherstellen** for the last 20 removals in the current draft, without a timer. Restoration uses surviving neighbours and preserves later edits. Images intentionally removed from the pool are omitted with an explanation. Switching successfully to another vehicle clears this history; native text undo remains independent. Moves and removals restore keyboard focus and announce the result.
+
+Decoded source dimensions are shown beside card and gallery images. Nonblocking review warnings recommend 480 px for cards/standalone lead images, 420 px for small gallery images, 840 px for medium and 1200 px for large. These hints never change image bytes or replace hard validation. Both descriptions have independent labelled 500-character counters. Category labels use **Abgeschlossene Projekte** while the technical key stays `vergangene-projekte`.
+
+The sandboxed offline preview uses local `vehicle-presentation.js` with immutable presentation data, embedded Lora and decorative texture. It matches centered ordinary copy, left-aligned side text, dark story background, cream/green transitions, contact styling and responsive image sizing. The website keeps local equivalents; cross-project regressions enforce parity. Runtime use never requires the sibling repository. Keep the presentation, watermark and font licence assets together.
+
+Redirects preserve explicit URL language queries. The website does not store language preferences: explicit `lang=de`/`lang=en` takes precedence over the route and browser language. Development redirects run before Astro request normalization. Static redirect HTML retains a no-JavaScript meta refresh and visible fixed destination, plus a CSP-hashed script forwarding the incoming query and fragment when JavaScript is available.

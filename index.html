@@ -92,7 +92,7 @@
                 <select id="category" required>
                   <option value="aktuelle-projekte">Aktuelle Projekte</option>
                   <option value="vergangene-projekte">
-                    Vergangene Projekte
+                    Abgeschlossene Projekte
                   </option>
                   <option value="fahrzeugangebote">Fahrzeugangebote</option>
                 </select>
@@ -270,6 +270,7 @@
               >
               <input id="lead-alt" type="text" required />
             </div>
+            <label class="watermark-control"><input type="checkbox" id="watermark-all" /> Wasserzeichen für alle Bilder</label>
             <div id="image-list" class="image-list" aria-live="polite">
               <div class="empty">Noch keine Galeriebilder importiert.</div>
             </div>
@@ -286,6 +287,7 @@
               <button class="btn" type="button" data-add-block="copy">
                 + Textblock
               </button>
+              <button class="btn" type="button" data-add-block="image-text">+ Text neben Bild</button>
               <button class="btn" type="button" data-add-block="gallery">
                 + Galerieblock
               </button>
@@ -306,7 +308,7 @@
           <div class="panel__body">
             <div class="review-state" id="review-state" aria-live="polite"></div>
             <button class="btn btn--secondary" id="open-page-preview" type="button">Fahrzeugseite ansehen</button>
-            <p class="hint">Vorschau von Lesereihenfolge, Bildern und Bildunterschriften. Schrift und Seitenrahmen sind vereinfacht; die Vorschau ersetzt nicht die Prüfung vor der Übernahme.</p>
+            <p class="hint">Vorschau von Lesereihenfolge, Bildern und Bildunterschriften. Leselayout, Schrift und Farben entsprechen der Fahrzeugseite; die umgebende Website-Navigation ist vereinfacht.</p>
             <dl class="summary">
               <div>
                 <dt>Kategorie</dt>
@@ -345,7 +347,7 @@ aktuelle-projekte/
               ZIP erstellen
             </button>
             <p class="status" id="status" role="status" aria-live="polite">
-              Noch nicht geprüft
+              Noch keine ZIP erstellt.
             </p>
             <details class="after-export" id="after-export" hidden>
               <summary>Fahrzeug ins Website-Projekt übernehmen</summary>
@@ -415,6 +417,8 @@ aktuelle-projekte/
     <script src="project-save.js"></script>
     <script src="project-ui.js"></script>
     <script src="website-tools.js"></script>
+    <script src="vehicle-presentation.js"></script>
+    <script src="watermark.js"></script>
     <script src="editor.js"></script>
   </body>
 </html>

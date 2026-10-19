@@ -122,10 +122,10 @@ editor is started with the launcher.
 2. Click **Im Projekt speichern**. It validates the current draft and prepares its
    paired page/folder in temporary staging automatically. There is no ZIP download,
    extraction, path entry or second folder selection.
-3. Read the exact original and destination routes, then enter **JA**. Existing
+3. Read the exact original and destination routes, then click **Speichern bestätigen**. Existing
    edits/moves use the vehicle explicitly selected in step two; replacement is
    never guessed from a matching title or slug. A new draft cannot overwrite an
-   existing vehicle. Other answers cancel and preserve your draft.
+   existing vehicle. **Abbrechen** cancels and preserves your draft.
 4. Wait for the result and retain the backup path. Confirmed saving places files in
    the correct website category and handles replacements, moves, redirects, sitemap,
    affected llms links, gallery assets and image metadata through the checked importer.
