@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Oldtimer-Fahrzeugeditor · Übungsdemo</title>
+    <title>Oldtimer-Fahrzeugeditor · Demo</title>
     <meta name="robots" content="noindex, nofollow" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
     <link rel="stylesheet" href="styles.css" />
@@ -12,7 +12,6 @@
   </head>
   <body>
     <main id="editor-shell">
-      <p class="demo-notice"><strong>Übungsdemo</strong> · Keine Verbindung zur Website. Bilder und Eingaben bleiben in diesem Browser-Tab. Beim Neuladen gehen Übungsstände verloren. Eine Übungs-ZIP können Sie herunterladen.</p>
       <nav class="step-nav" aria-label="Bearbeitungsschritte">
         <ol>
           <li><button type="button" data-step-target="project"><span class="step-nav__index">01</span><span class="step-nav__label">Demo starten</span><span class="step-nav__status" data-step-status="project">Offen</span></button></li>
@@ -49,13 +48,9 @@
       </nav>
 
       <section class="panel project-panel step-panel" data-step="project" aria-labelledby="project-title">
-        <div class="panel__head"><h1 id="project-title">Den Fahrzeugeditor ausprobieren</h1></div>
+        <h1 id="project-title" class="sr-only">Fahrzeugeditor</h1>
         <div class="panel__body">
-          <p>Üben Sie mit drei fiktiven Beispielfahrzeugen oder legen Sie ein eigenes Fahrzeug an. Ein Website-Ordner ist nicht nötig.</p>
-          <p>Bearbeiten Sie deutsche und englische Texte, laden Sie eigene Bilder und ordnen Sie die Inhalte. Die Entwurfsansicht zeigt nur Ihr Übungslayout. Speichern im Website-Projekt, Löschen echter Fahrzeuge, Website-Vorschau, Erstellen und Veröffentlichen sind hier nicht verfügbar.</p>
-          <p>Mit „Übungsstand merken“ bleibt ein Fahrzeug bis zum Neuladen in der Übungsliste erhalten. Die optionale ZIP sichert nur einen Download auf Ihrem Computer; sie ändert keine Website. Es gibt keine automatische Speicherung und keinen Upload Ihrer Inhalte.</p>
           <button class="btn btn--primary" id="choose-project" type="button">Demo starten</button>
-          <p id="project-name" class="hint">Nur fiktive Beispieldaten · keine echten Fahrzeugdaten</p>
           <p id="project-feedback" role="status" aria-live="polite"></p>
         </div>
       </section>
@@ -192,7 +187,7 @@
                   aria-readonly="true"
                 />
                 <p class="hint">
-                  Beispieladresse für die spätere Website. Diese Demo legt dort keine Seite an. Bestehende Übungsfahrzeuge behalten ihre ursprüngliche Beispieladresse.
+                  Die Seitenadresse wird aus Kategorie und Dateiname gebildet.
                 </p>
               </div>
               <div class="field field--wide">
@@ -312,7 +307,7 @@
           <div class="panel__body">
             <div class="review-state" id="review-state" aria-live="polite"></div>
             <button class="btn btn--secondary" id="open-page-preview" type="button">Entwurf ansehen</button>
-            <p class="hint">Lokale Ansicht Ihres Entwurfs in Deutsch und Englisch sowie für Desktop, Tablet und Mobil. Dies ist keine Vorschau der echten Website.</p>
+            <p class="hint">Entwurf in Deutsch oder Englisch und in verschiedenen Bildschirmgrößen ansehen.</p>
             <dl class="summary">
               <div>
                 <dt>Kategorie</dt>
@@ -340,24 +335,21 @@ aktuelle-projekte/
 └── …</pre
             >
             <div id="save-review" aria-live="polite"></div>
-            <button class="btn btn--primary" id="prepare-save" type="button">Übungsdaten prüfen</button>
-            <button class="btn btn--secondary" id="remember-demo" type="button">Übungsstand merken</button>
-            <p class="hint">Die Prüfung betrifft nur die Übungsdaten. Ein Abgleich mit echten Website-Dateien ist in dieser Demo nicht möglich.</p>
-            <p class="export-note">Optional: Laden Sie Ihre Übungsdaten und Bilder als ZIP herunter. Der Download speichert keinen Übungsstand in der Liste und verändert keine Website.</p>
+            <button class="btn btn--primary" id="prepare-save" type="button">Angaben prüfen</button>
+            <p class="export-note">Die ZIP enthält Ihre Fahrzeugdaten und Bilder.</p>
             <button
               class="btn btn--secondary generate"
               id="generate"
               type="button"
             >
-              Übungs-ZIP herunterladen
+              ZIP herunterladen
             </button>
             <p class="status" id="status" role="status" aria-live="polite">
               Noch keine ZIP erstellt.
             </p>
             <details class="after-export" id="after-export" hidden>
-              <summary>Übungs-ZIP heruntergeladen – was nun?</summary>
-              <p>Die ZIP enthält Ihre Fahrzeugdaten und Bilder zur lokalen Aufbewahrung oder Weitergabe. Sie wurde nicht hochgeladen und hat die Website nicht verändert.</p>
-              <p>Zum Weiterüben hierbleiben. Mit „Übungsstand merken“ übernehmen Sie den Entwurf in die Übungsliste dieses Tabs. Beim Neuladen wird die Demo zurückgesetzt.</p>
+              <summary>ZIP heruntergeladen</summary>
+              <p>Sie finden die Datei im Download-Ordner Ihres Browsers.</p>
             </details>
           </div>
         </section>
@@ -373,7 +365,7 @@ aktuelle-projekte/
 
     <dialog id="page-preview-dialog" aria-labelledby="page-preview-title">
       <div class="preview-toolbar">
-        <h2 id="page-preview-title">Entwurfsansicht · Übungsdemo</h2>
+        <h2 id="page-preview-title">Entwurfsansicht</h2>
         <label>Sprache <select id="preview-language"><option value="de">Deutsch</option><option value="en">Englisch</option></select></label>
         <label>Ansicht <select id="preview-width"><option value="1200">Desktop · 1200 px</option><option value="800">Tablet · 800 px</option><option value="390">Mobil · 390 px</option></select></label>
         <button class="btn btn--small" id="close-page-preview" type="button">Schließen</button>

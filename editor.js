@@ -376,7 +376,7 @@
           review.className = `review-state ${total ? "is-incomplete" : "is-ready"}`;
           review.textContent = total
             ? `${total} ${total === 1 ? "Angabe fehlt" : "Angaben fehlen"}. Sie können jeden Schritt direkt öffnen.`
-            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Die Übungsdaten können geprüft, im Tab gemerkt oder als ZIP heruntergeladen werden.";
+            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Sie können die Angaben prüfen und die ZIP herunterladen.";
         }
 
         function showStep(name, { focus = false } = {}) {
@@ -1045,7 +1045,7 @@
                 isContact
                   ? `
 								<div class="contact-actions-preview" aria-label="Vorschau der automatisch ergänzten Kontaktmöglichkeiten">
-									<span class="contact-actions-preview__label">Beispiel für spätere Kontaktmöglichkeiten</span>
+									<span class="contact-actions-preview__label">Kontaktmöglichkeiten</span>
 									<div class="contact-actions-preview__buttons" aria-hidden="true">
 										<span>03 69 66 / 83 7 83</span>
 										<span>E-Mail schreiben</span>
@@ -1585,7 +1585,7 @@
             ]);
           } finally {
             setBusy(false);
-            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "Übungs-ZIP herunterladen";
+            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "ZIP herunterladen";
           }
         }
 

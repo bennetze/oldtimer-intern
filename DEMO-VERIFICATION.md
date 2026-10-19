@@ -1,6 +1,6 @@
 # Demo verification — 2026-10-19
 
-The client demo is isolated on `codex/client-demo`, with its own managed checkout.
+The client demo is isolated on `demo`, with its own managed checkout.
 The original `main` checkout and its uncommitted files were preserved.
 
 Passed checks:
@@ -9,7 +9,7 @@ Passed checks:
 - Two Node demo tests: static entry isolation/CSP and fictional bilingual examples.
 - Eleven browser regression groups against the real, uninstrumented demo entry
   served beneath `/oldtimer-intern/`: startup, selection/date ordering, bilingual
-  imports, category changes/canonical URL, in-tab save/reopen, review invalidation,
+  imports, category changes/canonical URL, review invalidation,
   discard/reset cancellation, block and image reorder buttons, alternative text
   preservation, sandboxed bilingual responsive draft view, valid ZIP download,
   duplicate order rejection, incomplete bilingual input, new vehicle reset/slug

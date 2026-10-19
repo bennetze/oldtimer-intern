@@ -130,16 +130,3 @@ body { padding-top: 0; }
 #block-undo { margin-block: 16px; }
 #block-undo span { margin-inline-start: 12px; }
 .content-block__title:focus { outline: 3px solid #555; outline-offset: 4px; }
-
-/* Persistent scope and data-lifetime notice for the client demo. */
-.demo-notice {
-  padding: 12px 16px;
-  margin: 0 0 16px;
-  border: 1px solid var(--border, #bcb6a9);
-  border-radius: 8px;
-  background: #f4efdf;
-  color: #37332a;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-#remember-demo { margin-top: 8px; }

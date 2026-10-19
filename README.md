@@ -1,6 +1,6 @@
 # Client practice demo
 
-This branch (`codex/client-demo`) is an isolated, static practice version of the
+This branch (`demo`) is an isolated, static practice version of the
 internal editor. Keep it separate from `main`; it is not intended to be merged.
 
 Open `index.html` locally, or serve the repository root with GitHub Pages.
@@ -10,7 +10,7 @@ There is no install or build step. All paths are relative, including under
 ## GitHub Pages setup
 
 In repository Settings → Pages, select **Deploy from a branch**, choose
-**codex/client-demo**, select **/(root)**, and save. GitHub supplies the final
+**demo**, select **/(root)**, and save. GitHub supplies the final
 URL on that page. This deploys the demo editor, not the vehicle website.
 No Actions workflow, website directory, launcher or backend is required.
 
@@ -20,7 +20,6 @@ No Actions workflow, website directory, launcher or backend is required.
 - Three fictional bilingual examples with canvas-generated placeholder pictures.
 - Create vehicles, change categories, edit bilingual text, reorder images/blocks,
   and inspect a sandboxed local draft at desktop, tablet and mobile sizes.
-- “Übungsstand merken” stores validated vehicles in memory in this tab only.
 - Optional local practice ZIPs retain the existing vehicle pair format and validation.
 - No folder picker, project access, source writes, live website preview, deletion,
   build, deployment, API calls, analytics, storage service or content uploads.

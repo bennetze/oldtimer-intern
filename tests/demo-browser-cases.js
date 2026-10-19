@@ -27,26 +27,26 @@
   try {
     await run('start without project access and load examples', async () => {
       assert($('[data-step-target="selection"]').disabled, 'Selection starts disabled');
+      assert(!$('.demo-notice') && !$('#remember-demo'), 'Removed disclosure and memory-save control');
+      assert(!doc.querySelector('[data-step="project"] p:not(:empty)'), 'No introductory copy');
       click('#choose-project'); await until(() => all('.vehicle-row').length === 3);
       assert(all('.vehicle-row time').map(el => el.textContent).join() === '03.10.2026,02.10.2026,01.10.2026', 'Date ordering');
       click('.vehicle-row'); await until(() => $('#title').value.includes('Roadster') && !$('#prepare-save').disabled);
-      assert($('#title-en').value.includes('roadster'), 'English import');
+      assert($('#title-en').value.includes('Roadster'), 'English import');
     });
-    await run('review invalidates; memory save preserves bilingual category move', async () => {
+    await run('review invalidates and category move preserves bilingual draft', async () => {
       step('review'); click('#prepare-save'); await until(() => $('#save-review').dataset.reviewState === 'ready');
-      step('vehicle'); input('#title', 'Mein Übungsroadster'); input('#title-en', 'My practice roadster'); input('#category', 'fahrzeugangebote');
+      step('vehicle'); input('#title', 'Mein Roadster'); input('#title-en', 'My roadster'); input('#category', 'fahrzeugangebote');
       assert($('#save-review').dataset.reviewState === 'stale', 'Stale review');
-      step('review'); click('#remember-demo'); await until(() => $('#status').textContent.includes('in diesem Tab gemerkt'));
-      step('selection'); input('#category-filter', 'fahrzeugangebote'); assert(all('.vehicle-row').length === 2, 'Moved practice vehicle');
-      click('.vehicle-row'); await until(() => $('#title').value === 'Mein Übungsroadster');
-      assert($('#title-en').value === 'My practice roadster', 'English preserved');
+      assert($('#title-en').value === 'My roadster', 'English preserved');
       assert($('#source-url').value.includes('/fahrzeugangebote/'), 'Canonical category move');
     });
     await run('cancel discard and reset keep current work', async () => {
-      input('#title', 'Nicht verwerfen'); step('selection'); win.confirm = () => false; click('#start-new');
-      assert($('#title').value === 'Nicht verwerfen', 'Cancelled new retains draft');
-      click('#refresh-project'); assert(all('.vehicle-row').length === 2, 'Cancelled reset retains list');
-      win.confirm = () => true; click('.vehicle-row'); await until(() => $('#title').value === 'Mein Übungsroadster');
+      step('selection'); win.confirm = () => false; click('#start-new');
+      assert($('#title').value === 'Mein Roadster', 'Cancelled new retains draft');
+      click('#refresh-project'); assert(all('.vehicle-row').length === 3, 'Cancelled reset retains list');
+      win.confirm = () => true;
+      step('vehicle');
     });
     await run('block and image keyboard alternatives preserve state', async () => {
       step('content'); const count = all('[data-block-id]').length;
@@ -58,14 +58,15 @@
       const alt = first.querySelector('[data-image-alt]'); input('#' + alt.id, 'Übungsansicht mit eigenem Alternativtext');
       first.querySelector('[data-image-move="down"]').click();
       assert($(`[data-image-id="${imageId}"] [data-image-alt]`).value.includes('eigenem'), 'Alt retained after move');
-      // Reload the remembered version to keep the ZIP test independent of block edits.
-      step('selection'); click('.vehicle-row'); await until(() => $('#title').value === 'Mein Übungsroadster');
+      // Reload a sample to keep the ZIP test independent of block edits.
+      step('selection'); click('.vehicle-row'); await until(() => $('#title').value === 'Roadster, Baujahr 1962');
+      input('#title', 'Mein Roadster'); input('#title-en', 'My roadster'); input('#category', 'fahrzeugangebote');
     });
     await run('sandboxed bilingual draft preview', async () => {
       step('review'); click('#open-page-preview');
       assert($('#page-preview-frame').getAttribute('sandbox') === 'allow-same-origin', 'Sandbox');
       input('#preview-language', 'en');
-      await until(() => $('#page-preview-frame').contentDocument?.body?.textContent.includes('My practice roadster'));
+      await until(() => $('#page-preview-frame').contentDocument?.body?.textContent.includes('My roadster'));
       for (const width of ['1200', '800', '390']) input('#preview-width', width);
       click('#close-page-preview'); await until(() => !$('#page-preview-frame').hasAttribute('srcdoc'));
     });
