@@ -186,3 +186,9 @@ Deletion has no ZIP requirement. Without the launcher, use the existing guided
 
 The project folder must be selected again after reopening the editor. Export drafts
 you need to retain before closing; the editor does not persist them automatically.
+
+Under **Bilder**, **Wasserzeichen ansehen** opens a quick preview of every card
+and gallery image, even before required fields are complete. With **Wasserzeichen
+für alle Bilder** enabled, the page preview also shows watermarks. Previewing alone
+does not enable that preference or change original images. Existing baked-in
+watermarks remain in place.
