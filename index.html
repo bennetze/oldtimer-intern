@@ -270,6 +270,7 @@
               <input id="lead-alt" type="text" required />
             </div>
             <label class="watermark-control"><input type="checkbox" id="watermark-all" /> Wasserzeichen für alle Bilder</label>
+            <button class="btn btn--small" id="open-watermark-preview" type="button">Wasserzeichen ansehen</button>
             <div id="image-list" class="image-list" aria-live="polite">
               <div class="empty">Noch keine Galeriebilder importiert.</div>
             </div>
@@ -349,6 +350,15 @@ aktuelle-projekte/
       </div>
     </main>
 
+    <dialog id="watermark-preview-dialog" aria-labelledby="watermark-preview-title">
+      <div class="preview-toolbar">
+        <h2 id="watermark-preview-title">Wasserzeichen</h2>
+        <button class="btn btn--small" id="close-watermark-preview" type="button">Schließen</button>
+      </div>
+      <p class="hint">Vorschau mit Wasserzeichen. Originalbilder bleiben unverändert.</p>
+      <p id="watermark-preview-status" role="status"></p>
+      <div id="watermark-preview-images"></div>
+    </dialog>
     <dialog id="page-preview-dialog" aria-labelledby="page-preview-title">
       <div class="preview-toolbar">
         <h2 id="page-preview-title">Entwurfsansicht</h2>
@@ -357,6 +367,7 @@ aktuelle-projekte/
         <button class="btn btn--small" id="close-page-preview" type="button">Schließen</button>
       </div>
       <p class="hint">Die Ansicht wird bei Bedarf verkleinert. Innerhalb der Vorschau nach unten scrollen. Links sind hier ohne Funktion.</p>
+      <p id="page-preview-status" role="status"></p>
       <div id="preview-stage"><iframe id="page-preview-frame" title="Fahrzeugseite" sandbox="allow-same-origin"></iframe></div>
     </dialog>
 

@@ -1080,9 +1080,83 @@
           return template.innerHTML;
         }
 
-        function renderPagePreview() {
-          const english = $("#preview-language").value === "en";
+        // Each dialog owns its temporary URLs; closing also cancels pending work.
+        function previewSession() {
+          return { revision: 0, urls: [] };
+        }
+        const pagePreviewSession = previewSession();
+        const watermarkPreviewSession = previewSession();
+        function clearPreview(session) {
+          session.revision++;
+          session.urls.forEach(url => URL.revokeObjectURL(url));
+          session.urls = [];
+        }
+        async function watermarkedFile(file) {
+          let result = preparedWatermarkFiles.get(file);
+          if (!result) {
+            if (typeof window.VehicleWatermark !== "function") throw new Error("Wasserzeichen nicht verfügbar. Bitte alle Editor-Dateien zusammenlassen und die Seite neu laden.");
+            result = await window.VehicleWatermark(file);
+            if (result.type !== "image/webp") throw new Error("Wasserzeichen konnte nicht als WebP erstellt werden. Bitte erneut versuchen.");
+            await checkImage(result);
+            preparedWatermarkFiles.set(file, result);
+          }
+          return result;
+        }
+        async function previewPool(pool, session, revision) {
+          const images = [];
+          for (const image of pool) {
+            const file = await watermarkedFile(image.file);
+            if (session.revision !== revision) return null;
+            const url = URL.createObjectURL(file);
+            session.urls.push(url);
+            images.push({ ...image, url });
+          }
+          return images;
+        }
+        $("#open-watermark-preview").addEventListener("click", async () => {
+          const dialog = $("#watermark-preview-dialog");
+          const status = $("#watermark-preview-status");
+          clearPreview(watermarkPreviewSession);
+          const revision = watermarkPreviewSession.revision;
+          $("#watermark-preview-images").replaceChildren();
           const pool = poolImages();
+          status.textContent = pool.length ? "Wasserzeichen werden erstellt …" : "Zuerst ein Karten- oder Galeriebild hinzufügen.";
+          dialog.showModal();
+          $("#close-watermark-preview").focus();
+          try {
+            const images = await previewPool(pool, watermarkPreviewSession, revision);
+            if (!images) return;
+            $("#watermark-preview-images").innerHTML = images.map(image => `<figure><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt || image.outputName)}" /><figcaption>${escapeHtml(image.outputName)}</figcaption></figure>`).join("");
+            if (images.length) status.textContent = "";
+          } catch (error) {
+            if (revision === watermarkPreviewSession.revision) { clearPreview(watermarkPreviewSession); status.textContent = error.message; }
+          }
+        });
+        $("#close-watermark-preview").addEventListener("click", () => $("#watermark-preview-dialog").close());
+        $("#watermark-preview-dialog").addEventListener("close", () => {
+          clearPreview(watermarkPreviewSession);
+          $("#watermark-preview-images").replaceChildren();
+          $("#open-watermark-preview").focus();
+        });
+
+        async function renderPagePreview() {
+          clearPreview(pagePreviewSession);
+          const revision = pagePreviewSession.revision;
+          const status = $("#page-preview-status");
+          $("#page-preview-frame").removeAttribute("srcdoc");
+          status.textContent = state.watermarkEnabled ? "Wasserzeichen werden erstellt …" : "";
+          let pool = poolImages();
+          if (state.watermarkEnabled) {
+            try {
+              pool = await previewPool(pool, pagePreviewSession, revision);
+              if (!pool) return;
+              status.textContent = "";
+            } catch (error) {
+              if (revision === pagePreviewSession.revision) { clearPreview(pagePreviewSession); status.textContent = error.message; }
+              return;
+            }
+          }
+          const english = $("#preview-language").value === "en";
           const text = (value) => escapeHtml(value || "");
           const photo = (image, meta, lead = false) => `<figure class="${lead ? 'lead vehicle-lead' : `story-image story-image--${meta.size || 'small'} photo-${meta.size || 'small'}`}"><span class="story-image__button"><img src="${text(image.url)}" alt="${text(english ? meta.altEn : meta.alt)}" /></span>${!lead && (english ? meta.captionEn : meta.caption) ? `<figcaption>${text(english ? meta.captionEn : meta.caption)}</figcaption>` : ""}</figure>`;
           const lead = pool.find((image) => image.id === state.leadImageId);
@@ -1129,7 +1203,25 @@
           $("#close-page-preview").focus();
         });
         $("#close-page-preview").addEventListener("click", () => $("#page-preview-dialog").close());
+        const pagePreviewDialog = $("#page-preview-dialog");
+        let previewBackdropPointer = null;
+        function isPreviewBackdrop(event) {
+          const bounds = pagePreviewDialog.getBoundingClientRect();
+          return event.target === pagePreviewDialog &&
+            (event.clientX < bounds.left || event.clientX > bounds.right ||
+             event.clientY < bounds.top || event.clientY > bounds.bottom);
+        }
+        pagePreviewDialog.addEventListener("pointerdown", event => {
+          previewBackdropPointer = event.button === 0 && isPreviewBackdrop(event) ? event.pointerId : null;
+        });
+        pagePreviewDialog.addEventListener("pointerup", event => {
+          const dismiss = previewBackdropPointer === event.pointerId && isPreviewBackdrop(event);
+          previewBackdropPointer = null;
+          if (dismiss) pagePreviewDialog.close();
+        });
+        pagePreviewDialog.addEventListener("pointercancel", () => { previewBackdropPointer = null; });
         $("#page-preview-dialog").addEventListener("close", () => {
+          clearPreview(pagePreviewSession);
           $("#page-preview-frame").removeAttribute("srcdoc");
           $("#open-page-preview").focus();
         });
@@ -1440,7 +1532,7 @@
           state.watermarkEnabled = event.target.checked;
           notifyChange();
           setStatus([], state.watermarkEnabled
-            ? "Wasserzeichen werden in dieser Demo nicht ausgegeben."
+            ? "Wasserzeichen sind in der Entwurfsansicht sichtbar."
             : "Wasserzeichen deaktiviert.");
         });
 
@@ -1835,20 +1927,14 @@
           if (typeof window.VehicleWatermark !== "function") throw new Error(window.VehicleWebsiteTools
             ? "Die Wasserzeichen-Funktion wurde nicht geladen. Bitte die Website-Werkzeuge neu starten und die Editorseite neu laden."
             : "Die Wasserzeichen-Funktion wurde nicht geladen. Bitte watermark.js im selben Ordner wie index.html ablegen und den Editor neu öffnen.");
-          // Only final output creates derived files. The editor keeps original
+          // Preview and final output share derived files. The editor keeps original
           // bytes, filenames and preview URLs even if preparation fails.
           const names = new Map(snapshot.images.map(image => [image.name, image.name.replace(/\.[^.]+$/, ".webp")]));
           if (new Set([...names.values()].map(name => name.toLowerCase())).size !== snapshot.images.length) throw new Error("Bildnamen kollidieren nach der WebP-Konvertierung. Bitte unterschiedliche Bildnamen verwenden.");
           const images = [];
           for (const [index, image] of snapshot.images.entries()) {
             setStatus([], `Wasserzeichen werden erstellt … ${index + 1} / ${snapshot.images.length}`);
-            let file = preparedWatermarkFiles.get(image.file);
-            if (!file) {
-              file = await window.VehicleWatermark(image.file);
-              if (file.type !== "image/webp") throw new Error("Wasserzeichen konnte nicht als WebP erstellt werden. Bitte erneut versuchen.");
-              await checkImage(file);
-              preparedWatermarkFiles.set(image.file, file);
-            }
+            const file = await watermarkedFile(image.file);
             images.push({ name: names.get(image.name), file });
           }
           const record = JSON.parse(snapshot.recordText);

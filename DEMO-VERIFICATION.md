@@ -1,3 +1,29 @@
+# Watermark previews — 2026-10-23
+
+Added **Wasserzeichen ansehen** beside the image-step checkbox in both the demo
+and the separate local editor checkout. The quick dialog covers card and gallery
+images without requiring a complete draft. The sandboxed page view uses the same
+rendered WebP copies when watermarking is enabled. Original files, filenames and
+editor thumbnails remain unchanged; preview URLs are revoked on close. The demo
+still has no ZIP downloads or project actions.
+
+Passed checks:
+
+- JavaScript syntax, both Node demo tests and whitespace checks.
+- All twelve demo browser regression groups, including watermark rendering,
+  unchanged original image URLs/preference, focus restoration and URL cleanup.
+- All 45 local editor browser regressions and 50 website contract/import/save tests
+  against the separate local editor checkout.
+- Local fixture ZIP passes `unzip -t`; its vehicle JSON parses independently.
+- Manual browser inspection of the quick preview in both versions.
+
+Tests used temporary localhost harnesses and fictional/disposable data. Direct
+`file://` navigation is blocked by the browser automation policy. Native Windows
+Chrome/Edge and native folder-picker compatibility remain unverified. No commit,
+publishing operation or real vehicle changes were performed.
+
+---
+
 # ZIP download removal — 2026-10-23
 
 The `demo` branch no longer offers ZIP downloads. The download button, ZIP writer

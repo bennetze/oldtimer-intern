@@ -14,3 +14,9 @@ sind in dieser Demo nicht verfügbar.
 
 Die Demo benötigt keinen Website-Ordner. Projektdateien speichern oder löschen,
 die Website erstellen und veröffentlichen sind hier nicht möglich.
+
+Unter **Bilder** öffnet **Wasserzeichen ansehen** eine schnelle Vorschau aller
+Karten- und Galeriebilder mit Wasserzeichen, auch bei unvollständigen Angaben.
+Ist **Wasserzeichen für alle Bilder** aktiviert, zeigt auch die Entwurfsansicht
+die Wasserzeichen. Originaldateien bleiben unverändert; die Vorschau allein
+aktiviert die Option nicht. Bereits eingebrannte Wasserzeichen bleiben erhalten.

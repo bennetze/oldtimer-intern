@@ -62,6 +62,31 @@
       step('selection'); click('.vehicle-row'); await until(() => $('#title').value === 'Roadster, Baujahr 1962');
       input('#title', 'Mein Roadster'); input('#title-en', 'My roadster'); input('#category', 'fahrzeugangebote');
     });
+    await run('quick watermark preview preserves original images and checkbox preference', async () => {
+      step('images');
+      const original = $('#card-preview-image').src;
+      const urls = [], revoked = [];
+      const create = win.URL.createObjectURL, revoke = win.URL.revokeObjectURL;
+      win.URL.createObjectURL = file => { const url = create(file); if (file.type === 'image/webp') urls.push(url); return url; };
+      win.URL.revokeObjectURL = url => { revoked.push(url); revoke.call(win.URL, url); };
+      click('#open-watermark-preview');
+      await until(() => all('#watermark-preview-images img').length === 3);
+      await until(() => all('#watermark-preview-images img').every(image => image.complete && image.naturalWidth));
+      assert(!$('#watermark-all').checked, 'Preview does not change preference');
+      assert($('#card-preview-image').src === original, 'Original card URL retained');
+      assert(all('#watermark-preview-images img').every(image => urls.includes(image.src)), 'All card and gallery images rendered as WebP');
+      click('#close-watermark-preview'); await until(() => !$('#watermark-preview-dialog').open && !all('#watermark-preview-images img').length);
+      assert(urls.every(url => revoked.includes(url)), 'Temporary preview URLs revoked');
+      assert(doc.activeElement.id === 'open-watermark-preview', 'Focus restored');
+      $('#watermark-all').checked = true; $('#watermark-all').dispatchEvent(new win.Event('change', { bubbles: true }));
+      step('review'); click('#open-page-preview');
+      await until(() => $('#page-preview-frame').contentDocument?.querySelector('.story-image img')?.complete);
+      const marked = $('#page-preview-frame').contentDocument.querySelector('.story-image img');
+      assert(marked.src !== $('[data-image-id] img').src, 'Page uses derived watermarked image');
+      click('#close-page-preview'); await until(() => !$('#page-preview-frame').hasAttribute('srcdoc'));
+      $('#watermark-all').checked = false; $('#watermark-all').dispatchEvent(new win.Event('change', { bubbles: true }));
+      win.URL.createObjectURL = create; win.URL.revokeObjectURL = revoke;
+    });
     await run('sandboxed bilingual draft preview', async () => {
       step('review'); click('#open-page-preview');
       assert($('#page-preview-frame').getAttribute('sandbox') === 'allow-same-origin', 'Sandbox');
