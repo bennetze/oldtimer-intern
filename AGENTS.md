@@ -6,7 +6,7 @@ below. Keep six steps but replace project selection with demo onboarding. Do not
 project-access.js, project-save.js, project-ui.js or website-tools.js in index.html.
 Never add website folder access, launcher API calls, live preview, project saves,
 delete, build or publishing controls. The sandboxed in-memory draft view is allowed.
-Use fictional bilingual examples, local images and optional ZIP downloads. Keep interface copy short and natural; do not
+Use fictional bilingual examples and local images. Do not offer ZIP downloads. Keep interface copy short and natural; do not
 restore a disclosure banner, introductory paragraphs or a save-in-tab button. Document
 the temporary data lifetime in the user guide. Preserve validation, privacy,
 accessibility and relative classic script/style paths. Do not merge this branch into

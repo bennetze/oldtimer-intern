@@ -22,18 +22,17 @@ window.VehicleDemoUI = function (api) {
     target.setAttribute('role', error ? 'alert' : 'status');
   }
   function invalidateReview() {
-    if (!reviewed && $('#after-export').hidden) return;
+    if (!reviewed) return;
     reviewed = '';
-    $('#after-export').hidden = true;
     $('#save-review').dataset.reviewState = 'stale';
     feedback($('#save-review'), 'Angaben geändert. Bitte erneut prüfen.');
-    $('#status').textContent = 'Die bisherige ZIP enthält diese Änderungen noch nicht.';
+    $('#status').textContent = '';
   }
   function clearReview() {
-    reviewed = ''; $('#after-export').hidden = true;
+    reviewed = '';
     $('#save-review').dataset.reviewState = 'idle';
     feedback($('#save-review'), 'Noch nicht geprüft.');
-    $('#status').textContent = 'Noch keine ZIP erstellt.';
+    $('#status').textContent = '';
   }
   function canOpen(step) {
     return steps.includes(step) && !busy && !api.state.busy && (step === 'project' || (started && (step === 'selection' || selected)));
@@ -49,7 +48,6 @@ window.VehicleDemoUI = function (api) {
     $('#vehicle-list').inert = unavailable;
     const valid = selected && !api.validate().errors.length;
     $('#prepare-save').disabled = unavailable || !valid;
-    $('#generate').disabled = unavailable || !selected;
     const index = steps.indexOf(api.state.currentStep);
     $('#step-back').disabled = !canOpen(steps[index - 1]);
     $('#step-next').disabled = !canOpen(steps[index + 1]);
@@ -113,7 +111,7 @@ window.VehicleDemoUI = function (api) {
     }
     return key;
   }
-  async function prepareExport(snapshot) {
+  async function reviewSnapshot(snapshot) {
     const key = checkSnapshot(snapshot);
     reviewed = fingerprint();
     $('#save-review').dataset.reviewState = 'ready';
@@ -130,10 +128,10 @@ window.VehicleDemoUI = function (api) {
     baseline = fingerprint(); api.showEditor('new'); api.updateSummary();
   });
   $('#prepare-save').addEventListener('click', () => operation(async () => {
-    const snapshot = api.editorSnapshot(); api.updateSummary(); await prepareExport(snapshot);
+    const snapshot = api.editorSnapshot(); api.updateSummary(); await reviewSnapshot(snapshot);
   }, $('#save-review')));
   window.addEventListener('beforeunload', event => {
     if (dirty() || busy || api.state.busy) { event.preventDefault(); event.returnValue = ''; }
   });
-  return { canOpen, update, invalidateReview, prepareExport };
+  return { canOpen, update, invalidateReview, reviewSnapshot };
 };

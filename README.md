@@ -29,11 +29,11 @@ No Actions workflow, website directory, launcher or backend is required.
 - Three fictional bilingual examples with canvas-generated placeholder pictures.
 - Create vehicles, change categories, edit bilingual text, reorder images/blocks,
   and inspect a sandboxed local draft at desktop, tablet and mobile sizes.
-- Optional local practice ZIPs retain the existing vehicle pair format and validation.
+- Draft review and preview only; ZIP downloads are unavailable.
 - No folder picker, project access, source writes, live website preview, deletion,
   build, deployment, API calls, analytics, storage service or content uploads.
 - Refreshing/closing loses all practice changes. A reset requires confirmation.
-- ZIP checks cover the in-memory practice list only, never the real website.
+- Validation checks cover the in-memory practice list only, never the real website.
 
 `demo-ui.js` replaces the project workflow. The production access/save/launcher
 libraries are retained as inert source history but are not loaded or deployed
@@ -44,5 +44,5 @@ as executable actions. `demo-data.js` creates examples without remote resources.
 Run `node --check` on all JavaScript files and `node --test tests/demo.test.mjs`.
 For browser regressions run `node scripts/test-demo-browser.mjs` and open its
 printed localhost `/test` URL in a browser. The test uses a disposable static server,
-exercises the real demo without production hooks, and writes results and a ZIP
+exercises the real demo without production hooks, and writes results
 to a temporary directory. No real vehicles are used.

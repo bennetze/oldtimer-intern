@@ -40,7 +40,7 @@
           <li>
             <button type="button" data-step-target="review">
               <span class="step-nav__index">06</span>
-              <span class="step-nav__label">Prüfen &amp; exportieren</span>
+              <span class="step-nav__label">Prüfen</span>
               <span class="step-nav__status" data-step-status="review">Ausstehend</span>
             </button>
           </li>
@@ -301,9 +301,9 @@
         </section>
       </form>
 
-      <aside class="sidebar step-panel" data-step="review" aria-label="Prüfen und exportieren" hidden>
+      <aside class="sidebar step-panel" data-step="review" aria-label="Entwurf prüfen" hidden>
         <section class="panel review-panel">
-          <div class="panel__head"><h2>Prüfen &amp; exportieren</h2></div>
+          <div class="panel__head"><h2>Prüfen</h2></div>
           <div class="panel__body">
             <div class="review-state" id="review-state" aria-live="polite"></div>
             <button class="btn btn--secondary" id="open-page-preview" type="button">Entwurf ansehen</button>
@@ -336,21 +336,7 @@ aktuelle-projekte/
             >
             <div id="save-review" aria-live="polite"></div>
             <button class="btn btn--primary" id="prepare-save" type="button">Angaben prüfen</button>
-            <p class="export-note">Die ZIP enthält Ihre Fahrzeugdaten und Bilder.</p>
-            <button
-              class="btn btn--secondary generate"
-              id="generate"
-              type="button"
-            >
-              ZIP herunterladen
-            </button>
-            <p class="status" id="status" role="status" aria-live="polite">
-              Noch keine ZIP erstellt.
-            </p>
-            <details class="after-export" id="after-export" hidden>
-              <summary>ZIP heruntergeladen</summary>
-              <p>Sie finden die Datei im Download-Ordner Ihres Browsers.</p>
-            </details>
+            <p class="status" id="status" role="status" aria-live="polite"></p>
           </div>
         </section>
 

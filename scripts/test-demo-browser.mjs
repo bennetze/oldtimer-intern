@@ -9,12 +9,12 @@ const output = await mkdtemp(join(tmpdir(), 'oldtimer-demo-test-'));
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const server = createServer(async (req, res) => {
   try {
-    if (req.method === 'POST' && ['/result', '/zip'].includes(req.url)) {
+    if (req.method === 'POST' && req.url === '/result') {
       if (req.headers.origin !== `http://127.0.0.1:${server.address().port}`) { res.writeHead(403); res.end(); return; }
       const chunks = []; let size = 0;
       for await (const chunk of req) { size += chunk.length; if (size > 10 * 1024 ** 2) throw new Error('Oversized test artifact'); chunks.push(chunk); }
       const data = Buffer.concat(chunks);
-      await writeFile(join(output, req.url === '/zip' ? 'export.zip' : 'results.json'), data);
+      await writeFile(join(output, 'results.json'), data);
       if (req.url === '/result') console.log(data.toString());
       res.end('ok'); return;
     }

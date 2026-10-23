@@ -16,13 +16,13 @@
   function click(selector) { assert($(selector) && !$(selector).disabled, 'Unavailable control: ' + selector); $(selector).click(); }
   const step = name => click(`[data-step-target="${name}"]`);
   async function run(name, work) { await work(); results.push({ name, passed: true }); }
-  let folderCalls = 0, networkCalls = 0, zipBlob;
+  let folderCalls = 0, networkCalls = 0, zipCount = 0, downloads = 0;
   win.showDirectoryPicker = () => { folderCalls++; throw new Error('Folder picker must never run'); };
   win.fetch = () => { networkCalls++; throw new Error('No demo API calls'); };
   const nativeObjectURL = win.URL.createObjectURL.bind(win.URL);
-  win.URL.createObjectURL = blob => { if (blob.type === 'application/zip') zipBlob = blob; return nativeObjectURL(blob); };
+  win.URL.createObjectURL = blob => { if (blob.type === 'application/zip') zipCount++; return nativeObjectURL(blob); };
   const nativeClick = win.HTMLAnchorElement.prototype.click;
-  win.HTMLAnchorElement.prototype.click = function () { if (!this.download) nativeClick.call(this); };
+  win.HTMLAnchorElement.prototype.click = function () { if (this.download) downloads++; else nativeClick.call(this); };
   win.confirm = () => true;
   try {
     await run('start without project access and load examples', async () => {
@@ -58,7 +58,7 @@
       const alt = first.querySelector('[data-image-alt]'); input('#' + alt.id, 'Übungsansicht mit eigenem Alternativtext');
       first.querySelector('[data-image-move="down"]').click();
       assert($(`[data-image-id="${imageId}"] [data-image-alt]`).value.includes('eigenem'), 'Alt retained after move');
-      // Reload a sample to keep the ZIP test independent of block edits.
+      // Reload a sample to keep the review test independent of block edits.
       step('selection'); click('.vehicle-row'); await until(() => $('#title').value === 'Roadster, Baujahr 1962');
       input('#title', 'Mein Roadster'); input('#title-en', 'My roadster'); input('#category', 'fahrzeugangebote');
     });
@@ -70,13 +70,13 @@
       for (const width of ['1200', '800', '390']) input('#preview-width', width);
       click('#close-page-preview'); await until(() => !$('#page-preview-frame').hasAttribute('srcdoc'));
     });
-    await run('valid practice ZIP downloads without project access', async () => {
-      click('#generate'); await until(() => zipBlob && !$('#generate').disabled);
-      assert(zipBlob.size > 1000, 'ZIP bytes');
-      await fetch('/zip', { method: 'POST', body: zipBlob });
-      assert(!$('#after-export').textContent.includes('npm'), 'No transfer instructions');
+    await run('review works without ZIP download controls or project access', async () => {
+      assert(!$('#generate') && !$('#after-export'), 'No download controls');
+      assert(!all('[data-step="review"] button, [data-step-target="review"]').some(el => /ZIP|exportieren|herunterladen/i.test(el.textContent)), 'No export labels');
+      click('#prepare-save'); await until(() => $('#save-review').dataset.reviewState === 'ready');
       assert(!doc.querySelector('#tools-transfer'), 'No website controls');
       assert(folderCalls === 0 && networkCalls === 0, 'No filesystem or API access');
+      assert(zipCount === 0 && downloads === 0, 'No ZIP or download created');
     });
     await run('duplicate orders block practice changes', async () => {
       step('vehicle'); input('#order', '300'); step('review'); click('#prepare-save');
@@ -91,9 +91,9 @@
       input('#category', 'vergangene-projekte');
       assert($('#source-url').value.includes('/vergangene-projekte/uebungswagen-weiss-1960/'), 'Canonical URL');
       step('review'); assert($('#prepare-save').disabled, 'Incomplete data cannot be reviewed');
-      click('#generate'); assert($('#workspace-status').textContent.length > 0, 'Actionable validation');
+      assert($('#review-state').textContent.length > 0, 'Actionable validation');
     });
-    await run('card-only ZIP, both automatic order directions and manual order', async () => {
+    await run('card-only review, both automatic order directions and manual order', async () => {
       const canvas = document.createElement('canvas'); canvas.width = 80; canvas.height = 60;
       const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7e2930'; ctx.fillRect(0, 0, 80, 60);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
@@ -102,25 +102,16 @@
       await until(() => !$('#card-preview').hidden);
       input('#card-alt', 'Rotes fiktives Übungsfahrzeug'); input('#card-alt-en', 'Red fictional practice vehicle');
       input('#lead-alt', 'Rotes fiktives Übungsfahrzeug'); input('#lead-alt-en', 'Red fictional practice vehicle');
-      async function exportedRecord() {
-        step('review'); zipBlob = null; click('#generate'); await until(() => zipBlob);
-        const bytes = new Uint8Array(await zipBlob.arrayBuffer()); const view = new DataView(bytes.buffer); const decoder = new TextDecoder();
-        let offset = 0;
-        while (view.getUint32(offset, true) === 0x04034b50) {
-          const size = view.getUint32(offset + 18, true), length = view.getUint16(offset + 26, true), extra = view.getUint16(offset + 28, true);
-          const name = decoder.decode(bytes.slice(offset + 30, offset + 30 + length)); const start = offset + 30 + length + extra;
-          if (name.endsWith('/vehicle.json')) return JSON.parse(decoder.decode(bytes.slice(start, start + size)));
-          offset = start + size;
-        }
-        throw new Error('Missing vehicle.json');
+      async function reviewedOrder() {
+        step('review'); click('#prepare-save'); await until(() => $('#save-review').dataset.reviewState === 'ready');
+        return parseInt($('#summary-order').textContent, 10);
       }
-      const end = await exportedRecord(); assert(end.order > 0, 'Automatic end order');
-      assert(end.leadImage === end.cardImage && end.blocks.length === 0, 'Card-only lead with no galleries');
-      assert(end.cardImageAltEn === 'Red fictional practice vehicle', 'English card metadata');
+      assert(await reviewedOrder() > 0, 'Automatic end order with card-only draft');
+      assert($('#card-alt-en').value === 'Red fictional practice vehicle', 'English card metadata');
       step('vehicle'); input('#prepend-order', 'on'); $('#prepend-order').checked = true; $('#prepend-order').dispatchEvent(new win.Event('change', { bubbles: true }));
-      const beginning = await exportedRecord(); assert(beginning.order < 0, 'Automatic beginning order');
+      assert(await reviewedOrder() < 0, 'Automatic beginning order');
       step('vehicle'); $('#auto-order').checked = false; $('#auto-order').dispatchEvent(new win.Event('change', { bubbles: true })); input('#order', '-7');
-      const manual = await exportedRecord(); assert(manual.order === -7, 'Safe negative manual order');
+      assert(await reviewedOrder() === -7, 'Safe negative manual order');
       step('vehicle'); input('#description-en', ''); step('review'); assert($('#prepare-save').disabled, 'Missing English blocks review');
     });
     await run('desktop and mobile do not overflow', async () => {
@@ -135,6 +126,7 @@
       step('selection'); click('#refresh-project'); await until(() => all('.vehicle-row').length === 3);
       input('#category-filter', ''); assert(all('.vehicle-row').length === 3, 'Reset examples');
       assert(!$('#title').value, 'Reset draft');
+      assert(zipCount === 0 && downloads === 0, 'Entire demo runs without ZIPs or downloads');
     });
   } catch (error) { results.push({ name: error.message, passed: false, stack: error.stack }); }
   const report = { passed: results.every(result => result.passed), results };

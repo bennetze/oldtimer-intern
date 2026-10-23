@@ -219,7 +219,7 @@
         fields.dateModified.before(dateActions);
         dateActions.append(fields.dateModified, $("#use-today"));
         const completion = document.createElement("p"); completion.id = "language-completion"; completion.className = "hint";
-        $("#generate").before(completion);
+        $("#prepare-save").before(completion);
         let pendingChange = false;
         function notifyChange(defer = false) {
           workflow?.invalidateReview();
@@ -376,7 +376,7 @@
           review.className = `review-state ${total ? "is-incomplete" : "is-ready"}`;
           review.textContent = total
             ? `${total} ${total === 1 ? "Angabe fehlt" : "Angaben fehlen"}. Sie können jeden Schritt direkt öffnen.`
-            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Sie können die Angaben prüfen und die ZIP herunterladen.";
+            : window.VehicleWebsiteTools ? "Alle Pflichtangaben sind vollständig. „Im Projekt speichern“ prüft und speichert den aktuellen Entwurf nach Ihrer Bestätigung." : "Alle Pflichtangaben sind vollständig. Sie können die Angaben prüfen und den Entwurf ansehen.";
         }
 
         function showStep(name, { focus = false } = {}) {
@@ -431,7 +431,6 @@
           $(".sidebar").inert = value && !websiteTools;
           $(".review-panel").inert = value;
           $("#start-screen").inert = value;
-          $("#generate").disabled = value;
           $("form").setAttribute("aria-busy", String(value));
           workflow?.update();
         }
@@ -470,28 +469,6 @@
           } catch { throw new Error("Das Bild ist beschädigt, zu groß oder kann in diesem Browser nicht dekodiert werden."); }
           finally { URL.revokeObjectURL(url); }
           return checked;
-        }
-        function checkZipEntries(entries) {
-          if (entries.length >= 65535) throw new Error("Zu viele ZIP-Einträge (ZIP64 wird nicht unterstützt).");
-          const encoder = new TextEncoder();
-          const names = new Set();
-          let size = 22;
-          let payload = 0, folderFiles = 0;
-          for (const entry of entries) {
-            if (!/^[a-z0-9-]+\/[a-z0-9-]+(?:\/[A-Za-z0-9._-]+|\.astro)$/.test(entry.name) || entry.name.includes("..") || names.has(entry.name.toLowerCase())) throw new Error("Ungültiger oder doppelter ZIP-Dateiname.");
-            names.add(entry.name.toLowerCase());
-            const length = encoder.encode(entry.name).length;
-            const bytes = typeof entry.data === "string" ? encoder.encode(entry.data).length : entry.data.size;
-            if (!entry.name.endsWith('.astro')) {
-              folderFiles++; payload += bytes;
-              if (folderFiles > 2000 || payload > maxExportBytes) throw new Error("Das Fahrzeug überschreitet 2000 Dateien oder 512 MiB.");
-              if (bytes > (entry.name.endsWith('/vehicle.json') ? 2 * 1024 ** 2 : maxImageBytes)) throw new Error("vehicle.json darf höchstens 2 MiB und jedes Bild höchstens 50 MiB groß sein.");
-            }
-            for (const component of entry.name.split('/')) if (!validVehicleFilename(component)) throw new Error("Ein Dateiname wird auf Windows nicht unterstützt oder ist zu lang.");
-            if (length > 65535 || !Number.isSafeInteger(bytes) || bytes >= 0xffffffff) throw new Error("ZIP-Größenlimit überschritten.");
-            size += 76 + 2 * length + bytes;
-            if (size >= 0xffffffff) throw new Error("Der Export überschreitet 512 MiB. Bitte kleinere Bilder verwenden.");
-          }
         }
         function validateRecord(record) {
           return validateVehicleRecord(record, (html, context) => {
@@ -773,7 +750,7 @@
           const label = state.cardFile ? "Kartenbild ersetzen" : "Kartenbild auswählen";
           $("#card-drop > div").firstElementChild.textContent = label + " oder hier ablegen";
           $("#card-drop .file-control label").textContent = label;
-          const info = state.cardFile ? `${state.cardImported ? "Importiert" : "Ausgewählt"}: ${state.cardFile.name} · ${dimensionLabel(state.cardFile)} · ${humanSize(state.cardFile.size)} · Export: ${cardName()}` : "Noch kein Kartenbild ausgewählt.";
+          const info = state.cardFile ? `${state.cardImported ? "Importiert" : "Ausgewählt"}: ${state.cardFile.name} · ${dimensionLabel(state.cardFile)} · ${humanSize(state.cardFile.size)} · Dateiname: ${cardName()}` : "Noch kein Kartenbild ausgewählt.";
           $('[data-file-summary="card-file"]').textContent = info;
           $("#card-file-info").textContent = info;
         }
@@ -799,7 +776,7 @@
         function updateImageQuality() {
           const warnings = imageQualityWarnings();
           const root = $("#image-quality"); root.hidden = !warnings.length;
-          root.innerHTML = warnings.length ? '<strong>Hinweise zur Bildqualität (Export bleibt möglich)</strong><ul>' + warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("") + '</ul>' : "";
+          root.innerHTML = warnings.length ? '<strong>Hinweise zur Bildqualität</strong><ul>' + warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("") + '</ul>' : "";
         }
         function showCard() {
           updateCardDetails();
@@ -1320,7 +1297,7 @@
           const workspaceStatus = $("#workspace-status");
           const messageHtml = errors.length
             ? `<strong>Bitte korrigieren:</strong><ul class="error-list">${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>`
-            : escapeHtml(successMessage || "Bereit zum Exportieren.");
+            : escapeHtml(successMessage || "Bereit zum Prüfen.");
           if (!$("#start-screen").hidden) {
             startFeedback.innerHTML = messageHtml;
             return;
@@ -1339,7 +1316,7 @@
             status.className = successMessage
               ? "status status--success"
               : "status";
-            status.textContent = successMessage || "Bereit zum Exportieren.";
+            status.textContent = successMessage || "Bereit zum Prüfen.";
           }
         }
 
@@ -1396,197 +1373,6 @@
 
         function createAstro(category, slug) {
           return `---\nimport { getEntry } from 'astro:content';\nimport VehicleDetailPage from '../../../components/VehicleDetailPage.astro';\n\nconst vehicle = await getEntry('vehicles', '${category}/${slug}');\n\nif (!vehicle) {\n\tthrow new Error('Missing vehicle content for ${category}/${slug}.');\n}\n---\n\n<VehicleDetailPage {vehicle} />\n`;
-        }
-
-        const crcTable = (() => {
-          const table = new Uint32Array(256);
-          for (let n = 0; n < 256; n++) {
-            let c = n;
-            for (let k = 0; k < 8; k++)
-              c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-            table[n] = c >>> 0;
-          }
-          return table;
-        })();
-
-        function crc32(bytes) {
-          let crc = 0xffffffff;
-          for (const byte of bytes)
-            crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-          return (crc ^ 0xffffffff) >>> 0;
-        }
-
-        function zipDateTime(date = new Date()) {
-          const year = Math.max(date.getFullYear(), 1980);
-          return {
-            time:
-              (date.getHours() << 11) |
-              (date.getMinutes() << 5) |
-              Math.floor(date.getSeconds() / 2),
-            date:
-              ((year - 1980) << 9) |
-              ((date.getMonth() + 1) << 5) |
-              date.getDate(),
-          };
-        }
-
-        function write16(view, offset, value) {
-          view.setUint16(offset, value, true);
-        }
-        function write32(view, offset, value) {
-          view.setUint32(offset, value, true);
-        }
-
-        async function makeZip(entries) {
-          checkZipEntries(entries);
-          const encoder = new TextEncoder();
-          const locals = [];
-          const centrals = [];
-          let localOffset = 0;
-          const stamp = zipDateTime();
-
-          for (const entry of entries) {
-            const name = encoder.encode(entry.name);
-            const data =
-              typeof entry.data === "string"
-                ? encoder.encode(entry.data)
-                : new Uint8Array(await entry.data.arrayBuffer());
-            const checksum = crc32(data);
-            const local = new Uint8Array(30 + name.length);
-            const localView = new DataView(local.buffer);
-            write32(localView, 0, 0x04034b50);
-            write16(localView, 4, 20);
-            write16(localView, 6, 0x0800);
-            write16(localView, 8, 0);
-            write16(localView, 10, stamp.time);
-            write16(localView, 12, stamp.date);
-            write32(localView, 14, checksum);
-            write32(localView, 18, data.length);
-            write32(localView, 22, data.length);
-            write16(localView, 26, name.length);
-            write16(localView, 28, 0);
-            local.set(name, 30);
-
-            const central = new Uint8Array(46 + name.length);
-            const centralView = new DataView(central.buffer);
-            write32(centralView, 0, 0x02014b50);
-            write16(centralView, 4, 20);
-            write16(centralView, 6, 20);
-            write16(centralView, 8, 0x0800);
-            write16(centralView, 10, 0);
-            write16(centralView, 12, stamp.time);
-            write16(centralView, 14, stamp.date);
-            write32(centralView, 16, checksum);
-            write32(centralView, 20, data.length);
-            write32(centralView, 24, data.length);
-            write16(centralView, 28, name.length);
-            write16(centralView, 30, 0);
-            write16(centralView, 32, 0);
-            write16(centralView, 34, 0);
-            write16(centralView, 36, 0);
-            write32(centralView, 38, 0);
-            write32(centralView, 42, localOffset);
-            central.set(name, 46);
-
-            locals.push(local, data);
-            centrals.push(central);
-            localOffset += local.length + data.length;
-          }
-
-          const centralSize = centrals.reduce(
-            (size, part) => size + part.length,
-            0,
-          );
-          const end = new Uint8Array(22);
-          const endView = new DataView(end.buffer);
-          write32(endView, 0, 0x06054b50);
-          write16(endView, 4, 0);
-          write16(endView, 6, 0);
-          write16(endView, 8, entries.length);
-          write16(endView, 10, entries.length);
-          write32(endView, 12, centralSize);
-          write32(endView, 16, localOffset);
-          write16(endView, 20, 0);
-          return new Blob([...locals, ...centrals, end], {
-            type: "application/zip",
-          });
-        }
-
-        async function generate() {
-          if (state.busy) return;
-          const button = $("#generate");
-          const { errors, unused } = validate();
-          if (errors.length) {
-            let target = bilingualIssues()[0]?.element;
-            const targetStep = target?.closest("[data-step]")?.dataset.step || firstIncompleteStep();
-            showStep(targetStep);
-            if (!target) target = targetStep === "images" ? $("#card-file") : targetStep === "content" ? $("#block-list button, #block-list input, #block-list [contenteditable]") : $("#title");
-            setStatus(errors);
-            requestAnimationFrame(() => {
-              if (target) {
-                target.closest("details")?.setAttribute("open", "");
-                target.focus();
-              }
-              $("#workspace-status").scrollIntoView({
-                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-                block: "nearest",
-              });
-            });
-            return;
-          }
-          setBusy(true);
-          button.textContent = "ZIP wird erstellt…";
-          setStatus([], "Dateien werden vorbereitet…");
-          try {
-            const snapshot = await prepareOutputSnapshot(editorSnapshot());
-            updateSummary();
-            await workflow?.prepareExport(snapshot);
-            const record = snapshot.record;
-            const base = `${record.category}`;
-            const folder = `${base}/${record.slug}`;
-            const entries = [
-              {
-                name: `${base}/${record.slug}.astro`,
-                data: createAstro(record.category, record.slug),
-              },
-              {
-                name: `${folder}/vehicle.json`,
-                data: snapshot.recordText,
-              },
-              {
-                name: `${folder}/${snapshot.images[0].name}`,
-                data: snapshot.images[0].file,
-              },
-              ...snapshot.images.slice(1).map((image) => ({
-                name: `${folder}/${image.name}`,
-                data: image.file,
-              })),
-            ];
-            const zip = await makeZip(entries);
-            const url = URL.createObjectURL(zip);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = `${record.category}-${record.slug}.zip`;
-            document.body.append(anchor);
-            anchor.click();
-            anchor.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-            const unusedNote = unused.length
-              ? ` Hinweis: ${unused.length} ungenutzte Bilder sind im Export enthalten.`
-              : "";
-            setStatus(
-              [],
-              `ZIP mit ${entries.length} Dateien erstellt (${humanSize(zip.size)}).${unusedNote}`,
-            );
-            $("#after-export").hidden = false;
-          } catch (error) {
-            setStatus([
-              `Export fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`,
-            ]);
-          } finally {
-            setBusy(false);
-            button.textContent = window.VehicleWebsiteTools ? "ZIP herunterladen (optional)" : "ZIP herunterladen";
-          }
         }
 
         function setupDropZone(element, onFiles) {
@@ -1654,7 +1440,7 @@
           state.watermarkEnabled = event.target.checked;
           notifyChange();
           setStatus([], state.watermarkEnabled
-            ? window.VehicleWebsiteTools ? "Wasserzeichen werden beim ZIP-Download oder Speichern erstellt." : "Wasserzeichen werden beim ZIP-Download erstellt."
+            ? "Wasserzeichen werden in dieser Demo nicht ausgegeben."
             : "Wasserzeichen deaktiviert.");
         });
 
@@ -2022,7 +1808,6 @@
           state.draggedBlockId = "";
         });
 
-        $("#generate").addEventListener("click", generate);
         function resetEditor() {
           if (state.cardUrl) URL.revokeObjectURL(state.cardUrl);
           state.images.forEach(image => URL.revokeObjectURL(image.url));

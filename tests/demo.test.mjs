@@ -11,6 +11,9 @@ test('demo entry loads only standalone local assets and blocks API connections',
   assert.match(html, /connect-src 'none'/);
   assert.doesNotMatch(html, /id="tools-|npm run|id="recover-project"/);
   assert.equal([...html.matchAll(/data-step-target=/g)].length, 6);
+  assert.doesNotMatch(html, /id="generate"|id="after-export"|ZIP herunterladen|exportieren/);
+  const editor = await readFile(new URL('editor.js', root), 'utf8');
+  assert.doesNotMatch(editor, /application\/zip|anchor\.download|function generate\(|function makeZip\(/);
   for (const name of ['demo-data.js', 'demo-ui.js']) {
     const source = await readFile(new URL(name, root), 'utf8');
     assert.doesNotMatch(source, /\bfetch\s*\(|showDirectoryPicker|requestPermission|createWritable|localStorage|sessionStorage|indexedDB/);

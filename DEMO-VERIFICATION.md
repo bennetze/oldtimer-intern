@@ -1,3 +1,23 @@
+# ZIP download removal — 2026-10-23
+
+The `demo` branch no longer offers ZIP downloads. The download button, ZIP writer
+and download handler were removed; step six is now **Prüfen**. Draft validation
+and the sandboxed bilingual preview remain available. The `main` branch is unchanged.
+
+Passed checks:
+
+- Syntax checks for every root JavaScript file and scripts/tests JS/MJS file.
+- Both Node demo tests and `git diff --check`.
+- All eleven browser regression groups under `/oldtimer-intern/`, including review
+  invalidation, bilingual preview, collision/incomplete-input validation, card-only
+  review, ordering, image/block controls, reset and desktop/mobile overflow checks.
+- The browser regressions assert that no ZIP blobs or downloads are created.
+
+Checks used fictional examples and a temporary localhost harness. Native `file://`
+and Windows Chrome/Edge were not tested. No publishing operation was performed.
+
+---
+
 # Demo verification — 2026-10-19
 
 The client demo is isolated on `demo`, with its own managed checkout.
