@@ -7,10 +7,12 @@
 - `demo`: the separate client demo, served by GitHub Pages. It has no website-folder
   access or website actions. Keep its entry page and workflow separate from `main`.
 
-Both versions are committed in this repository. Shared editor updates flow from
-`main` into `demo`; resolve differences by preserving each version's workflow.
-No additional worktree is required: switch branches in this project folder when
-needed, after committing any local changes. GitHub Pages remains set to `demo`.
+Keep this `oldtimer-intern` folder on `main`: all Website-Werkzeuge launchers
+load it by that fixed sibling path. The client demo belongs in the separate
+`../oldtimer-intern-demo` checkout on `demo`; GitHub Pages serves that branch.
+Do not switch this launcher folder to `demo`. Shared editor changes must preserve
+each version's workflow. The launcher rejects demo/mismatched files and retains
+one set of editor assets until it is restarted.
 
 
 See the [step-by-step user guide](USER-GUIDE.md) for adding cars, changing categories,

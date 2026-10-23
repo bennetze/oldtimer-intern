@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Checkout separation
+
+Keep `/Users/betannet/Developer/oldtimer-intern` on `main`; the website launchers
+load this fixed sibling directory. The client demo lives in the separate
+`/Users/betannet/Developer/oldtimer-intern-demo` checkout on `demo`. Never switch
+the launcher's directory to `demo` or point it at the demo checkout. Preserve
+watermark previews and backdrop dismissal in both variants. The internal entry
+identifies itself with `vehicle-editor=internal`; it loads VehicleProjectUI and
+Website-Werkzeuge actions. The demo has no ZIP downloads or project actions.
+
 ## Project purpose
 
 This repository contains an offline browser editor for vehicle pages on the

@@ -192,3 +192,12 @@ and gallery image, even before required fields are complete. With **Wasserzeiche
 für alle Bilder** enabled, the page preview also shows watermarks. Previewing alone
 does not enable that preference or change original images. Existing baked-in
 watermarks remain in place.
+
+## Which editor to open
+
+Keep the full editor in `oldtimer-intern`, next to the website folder `oldtimer`.
+The Website-Werkzeuge launchers open that full editor. The separate client demo
+lives in `oldtimer-intern-demo` and on GitHub Pages; it cannot save website files.
+Do not change the full editor's checkout to the `demo` branch.
+After updating the editor or launcher, close the previous launcher with Ctrl+C
+and start Website-Werkzeuge again so its complete asset snapshot is refreshed.
