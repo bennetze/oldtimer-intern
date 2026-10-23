@@ -1129,6 +1129,23 @@
           $("#close-page-preview").focus();
         });
         $("#close-page-preview").addEventListener("click", () => $("#page-preview-dialog").close());
+        const pagePreviewDialog = $("#page-preview-dialog");
+        let previewBackdropPointer = null;
+        function isPreviewBackdrop(event) {
+          const bounds = pagePreviewDialog.getBoundingClientRect();
+          return event.target === pagePreviewDialog &&
+            (event.clientX < bounds.left || event.clientX > bounds.right ||
+             event.clientY < bounds.top || event.clientY > bounds.bottom);
+        }
+        pagePreviewDialog.addEventListener("pointerdown", event => {
+          previewBackdropPointer = event.button === 0 && isPreviewBackdrop(event) ? event.pointerId : null;
+        });
+        pagePreviewDialog.addEventListener("pointerup", event => {
+          const dismiss = previewBackdropPointer === event.pointerId && isPreviewBackdrop(event);
+          previewBackdropPointer = null;
+          if (dismiss) pagePreviewDialog.close();
+        });
+        pagePreviewDialog.addEventListener("pointercancel", () => { previewBackdropPointer = null; });
         $("#page-preview-dialog").addEventListener("close", () => {
           $("#page-preview-frame").removeAttribute("srcdoc");
           $("#open-page-preview").focus();
