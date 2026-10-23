@@ -1,5 +1,10 @@
 # Client demo branch override
 
+Keep this demo in `/Users/betannet/Developer/oldtimer-intern-demo` on `demo`.
+The website launchers use `/Users/betannet/Developer/oldtimer-intern` on `main`.
+Never switch that internal-editor folder to `demo`. Preserve both sets of preview
+fixes, but never merge demo workflow restrictions into the internal editor.
+
 This branch is intentionally a standalone GitHub Pages practice editor. The user's
 explicit demo scope overrides production project-selection and source-write workflows
 below. Keep six steps but replace project selection with demo onboarding. Do not load

@@ -12,9 +12,10 @@ There is no install or build step. All paths are relative, including under
 - `main` contains the complete internal editor used by the Website-Werkzeuge launcher.
 - `demo` contains this standalone client version and remains the GitHub Pages source.
 
-Shared editor updates are merged from `main`; demo-specific entry, workflow and copy
-remain separate. Both branches are committed and available in the normal repository.
-Switch branches there after committing local work; an extra worktree is not required.
+This demo lives in its own `oldtimer-intern-demo` checkout on `demo`. Keep the
+sibling `oldtimer-intern` folder on `main`: Website-Werkzeuge uses that fixed
+path for the complete internal editor. Do not switch the launcher folder to
+`demo`. Shared fixes must preserve the two separate workflows.
 
 ## GitHub Pages setup
 
