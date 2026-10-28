@@ -2,7 +2,7 @@
 
 ## Checkout separation
 
-Keep `/Users/betannet/Developer/oldtimer-intern` on `main`; the website launchers
+Keep `/Users/betannet/Developer/Website/Intern` on `main`; the website launchers
 load this fixed sibling directory. The client demo lives in the separate
 `/Users/betannet/Developer/oldtimer-intern-demo` checkout on `demo`. Never switch
 the launcher's directory to `demo` or point it at the demo checkout. Preserve
@@ -168,47 +168,47 @@ The website implementation is `scripts/delete-vehicle.mjs`,
 The generated files are consumed by the sibling website repository:
 
 ```text
-/Users/betannet/Developer/oldtimer
+/Users/betannet/Developer/Website/Website
 ```
 
 The most important contract files there are:
 
-- `/Users/betannet/Developer/oldtimer/src/content.config.ts`: authoritative
+- `/Users/betannet/Developer/Website/Website/src/content.config.ts`: authoritative
   `vehicle.json` schema.
-- `/Users/betannet/Developer/oldtimer/src/config/vehicles.ts`: category definitions,
+- `/Users/betannet/Developer/Website/Website/src/config/vehicles.ts`: category definitions,
   route construction, discovery, and sorting.
-- `/Users/betannet/Developer/oldtimer/src/components/VehicleDetailPage.astro`:
+- `/Users/betannet/Developer/Website/Website/src/components/VehicleDetailPage.astro`:
   rendering behavior for copy, contact, and gallery blocks.
-- `/Users/betannet/Developer/oldtimer/VEHICLE-CONTENT-GUIDE.md`: human-facing vehicle
+- `/Users/betannet/Developer/Website/Website/VEHICLE-CONTENT-GUIDE.md`: human-facing vehicle
   maintenance guide.
-- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-files.mjs`: filesystem pair,
+- `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-files.mjs`: filesystem pair,
   image-reference, metadata, and duplicate-order validation.
-- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-import.mjs`: reference
+- `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-import.mjs`: reference
   checked-import behavior, replacements, backups, and category moves.
-- `/Users/betannet/Developer/oldtimer/scripts/transfer-vehicle.mjs` and
-  `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-transfer-wizard.mjs`:
+- `/Users/betannet/Developer/Website/Website/scripts/transfer-vehicle.mjs` and
+  `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-transfer-wizard.mjs`:
   guided folder input and explicit original-vehicle selection.
-- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-transfer.mjs` and
-  `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-preview.mjs`: confirmed
+- `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-transfer.mjs` and
+  `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-preview.mjs`: confirmed
   transfer, short German messages, gallery refresh and preview signals.
-- `/Users/betannet/Developer/oldtimer/scripts/dev-vehicles.mjs` and
-  `/Users/betannet/Developer/oldtimer/scripts/vehicle-dev-server.mjs`: foreground
+- `/Users/betannet/Developer/Website/Website/scripts/dev-vehicles.mjs` and
+  `/Users/betannet/Developer/Website/Website/scripts/vehicle-dev-server.mjs`: foreground
   preview supervision and fresh Astro processes.
-- `/Users/betannet/Developer/oldtimer/scripts/lib/vehicle-gallery.mjs` and
-  `/Users/betannet/Developer/oldtimer/src/config/vehicleImages.ts`: generated gallery
+- `/Users/betannet/Developer/Website/Website/scripts/lib/vehicle-gallery.mjs` and
+  `/Users/betannet/Developer/Website/Website/src/config/vehicleImages.ts`: generated gallery
   assets and image metadata consumed by rendering.
-- `/Users/betannet/Developer/oldtimer/src/config/vehicleDevRedirects.js` and
-  `/Users/betannet/Developer/oldtimer/src/middleware.ts`: development redirects.
-- `/Users/betannet/Developer/oldtimer/scripts/lib/crawlers.mjs` and
-  `/Users/betannet/Developer/oldtimer/src/config/modificationDates.js`: sitemap,
+- `/Users/betannet/Developer/Website/Website/src/config/vehicleDevRedirects.js` and
+  `/Users/betannet/Developer/Website/Website/src/middleware.ts`: development redirects.
+- `/Users/betannet/Developer/Website/Website/scripts/lib/crawlers.mjs` and
+  `/Users/betannet/Developer/Website/Website/src/config/modificationDates.js`: sitemap,
   bilingual routes, pagination, and reviewed date rules.
-- `/Users/betannet/Developer/oldtimer/scripts/test-vehicle-discovery.mjs`: discovery
+- `/Users/betannet/Developer/Website/Website/scripts/test-vehicle-discovery.mjs`: discovery
   fixture test.
-- `/Users/betannet/Developer/oldtimer/scripts/verify-vehicle-build.mjs`: generated-site
+- `/Users/betannet/Developer/Website/Website/scripts/verify-vehicle-build.mjs`: generated-site
   verification.
 
 Before editing the sibling website, read its own
-`/Users/betannet/Developer/oldtimer/AGENTS.md` completely. Preserve unrelated user
+`/Users/betannet/Developer/Website/Website/AGENTS.md` completely. Preserve unrelated user
 changes in that repository. Do not edit generated `dist/` output as source.
 
 Treat the website schema as authoritative. If the generator output format changes,
@@ -453,7 +453,7 @@ Never run `npm` here expecting project scripts.
 Syntax-check each JavaScript file with `node --check`. Run the website fixtures:
 
 ```sh
-cd /Users/betannet/Developer/oldtimer
+cd /Users/betannet/Developer/Website/Website
 node --test tests/vehicle-contract.test.mjs tests/vehicle-import.test.mjs tests/vehicle-project-save.test.mjs
 node scripts/test-vehicle-browser.mjs
 ```
@@ -508,7 +508,7 @@ When generated data, ordering, project writes, redirects, or crawler handling ch
 also verify the website. These are developer checks, not editor runtime requirements:
 
 ```sh
-cd /Users/betannet/Developer/oldtimer
+cd /Users/betannet/Developer/Website/Website
 npm run test:vehicle-discovery
 npm run build
 npm run build:pages

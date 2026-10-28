@@ -45,3 +45,45 @@
     click('#open-page-preview');eq(preview().querySelectorAll('.photos').length,2,'text ends run');click('#close-page-preview');
     await t.importVehicle(filesFor());t.showStep('review');
   });
+  await test('Both preview backdrops dismiss only complete outside clicks and return focus', async () => {
+    await t.importVehicle(filesFor());
+    const native = w.VehicleWatermark;
+    // This dismissal check must not depend on a browser's WebP encoder.
+    w.VehicleWatermark = async file => file;
+    const settleClose = dialog => new Promise(resolve => dialog.addEventListener('close', resolve, { once: true }));
+    try {
+      for (const kind of ['page', 'watermark']) {
+        t.showStep(kind === 'page' ? 'review' : 'images');
+        const opener = d.querySelector(kind === 'page' ? '#open-page-preview' : '#open-watermark-preview');
+        const dialog = d.querySelector(kind === 'page' ? '#page-preview-dialog' : '#watermark-preview-dialog');
+        opener.focus(); opener.click();
+        const bounds = dialog.getBoundingClientRect();
+        const outside = { clientX: bounds.left - 10, clientY: bounds.top - 10 };
+        const inside = { clientX: bounds.left + 10, clientY: bounds.top + 10 };
+        const pointer = (type, position, extra = {}) => dialog.dispatchEvent(new w.PointerEvent(type, { bubbles: true, pointerId: 12, button: 0, ...position, ...extra }));
+        pointer('pointerdown', inside); pointer('pointerup', outside);
+        assert(dialog.open, kind + ' closed after dragging out');
+        pointer('pointerdown', outside); pointer('pointercancel', outside); pointer('pointerup', outside);
+        assert(dialog.open, kind + ' closed after cancelled pointer');
+        pointer('pointerdown', outside, { button: 2 }); pointer('pointerup', outside, { button: 2 });
+        assert(dialog.open, kind + ' closed on secondary click');
+        const closed = settleClose(dialog);
+        pointer('pointerdown', outside); pointer('pointerup', outside);
+        await closed;
+        assert(!dialog.open && d.activeElement === opener, kind + ' did not close and return focus');
+      }
+    } finally { w.VehicleWatermark = native; }
+  });
+  await test('Long quality warning lists keep review actions reachable and preserve their disclosure state', async () => {
+    await t.importVehicle(filesFor()); t.showStep('review');
+    const quality = d.querySelector('#image-quality');
+    const expected = t.validate().warnings;
+    const details = quality.querySelector('details');
+    assert(expected.length > 3 && details && !details.open, 'long warning list must start collapsed');
+    eq([...details.querySelectorAll('li')].map(item => item.textContent), expected, 'all warnings remain available');
+    assert(d.querySelector('#open-page-preview').getBoundingClientRect().top < frame.clientHeight, 'warnings hide preview action');
+    details.open = true; t.updateSummary();
+    assert(quality.querySelector('details') === details && details.open, 'unchanged summary replaced the disclosure');
+    input('title', 'Changed title');
+    assert(quality.querySelector('details').open, 'unrelated edit collapsed the warning list');
+  });

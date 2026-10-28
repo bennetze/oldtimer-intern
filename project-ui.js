@@ -156,7 +156,12 @@ window.VehicleProjectUI = function (api) {
     if ($('#after-export').hidden) $('#status').textContent = 'Noch keine ZIP erstellt.';
     root.classList.remove('feedback-error'); root.setAttribute('role', 'status');
     const notice = document.createElement('p'); notice.textContent = window.VehicleWebsiteTools ? 'Die Prüfung verändert keine Projektdateien. „Im Projekt speichern“ bereitet den aktuellen Entwurf automatisch vor. Original und Ziel werden vor der Bestätigung angezeigt. Erst „Speichern bestätigen“ speichert die geprüften Dateien mit Sicherung. Vorschau, Erstellen und Veröffentlichen bleiben separate Schritte.' : value.from && value.from !== value.key ? 'Kategorieverschiebung: Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Das angezeigte ursprüngliche Fahrzeug auswählen. Der Befehl entfernt nach Ihrer Bestätigung das alte Fahrzeugpaar und aktualisiert Weiterleitungen sowie Sitemap. Nicht selbst kopieren oder löschen.' : 'Die Prüfung verändert keine Projektdateien. Nach dem Export npm run vehicles:transfer starten und den Fragen folgen. Bestehende Fahrzeuge vor dem Ersetzen ausdrücklich auswählen. Danach die Website separat bauen.'; root.append(notice);
-    for (const warning of api.validate().warnings || []) { const hint = document.createElement('p'); hint.textContent = warning; root.append(hint); }
+    const warnings = api.validate().warnings || [];
+    if (warnings.length) {
+      const hint = document.createElement('p');
+      hint.textContent = `${warnings.length} ${warnings.length === 1 ? 'Hinweis zur Bildqualität steht' : 'Hinweise zur Bildqualität stehen'} oberhalb der Fahrzeugvorschau. Der Export bleibt möglich.`;
+      root.append(hint);
+    }
     if ($('#transfer-command')) $('#transfer-command').textContent = 'npm run vehicles:transfer';
   }
   async function prepareExport(snapshot) {

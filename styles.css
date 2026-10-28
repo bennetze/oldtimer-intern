@@ -2409,7 +2409,7 @@
         }
 
         #step-position {
-          max-width: 7ch;
+          white-space: nowrap;
           line-height: 1.35;
           text-align: center;
         }

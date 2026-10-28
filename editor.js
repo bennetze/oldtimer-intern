@@ -796,10 +796,18 @@
           }));
           return [...warnings.values()];
         }
+        let imageQualitySignature = "";
         function updateImageQuality() {
           const warnings = imageQualityWarnings();
           const root = $("#image-quality"); root.hidden = !warnings.length;
-          root.innerHTML = warnings.length ? '<strong>Hinweise zur Bildqualität (Export bleibt möglich)</strong><ul>' + warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("") + '</ul>' : "";
+          const signature = JSON.stringify(warnings);
+          if (signature === imageQualitySignature) return;
+          imageQualitySignature = signature;
+          const expanded = root.querySelector("details")?.open || false;
+          const list = '<ul>' + warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("") + '</ul>';
+          root.innerHTML = !warnings.length ? "" : warnings.length > 3
+            ? `<details${expanded ? " open" : ""}><summary>${warnings.length} Hinweise zur Bildqualität (Export bleibt möglich)</summary>${list}</details>`
+            : '<strong>Hinweise zur Bildqualität (Export bleibt möglich)</strong>' + list;
         }
         function showCard() {
           updateCardDetails();
@@ -1226,23 +1234,27 @@
           $("#close-page-preview").focus();
         });
         $("#close-page-preview").addEventListener("click", () => $("#page-preview-dialog").close());
-        const pagePreviewDialog = $("#page-preview-dialog");
-        let previewBackdropPointer = null;
-        function isPreviewBackdrop(event) {
-          const bounds = pagePreviewDialog.getBoundingClientRect();
-          return event.target === pagePreviewDialog &&
-            (event.clientX < bounds.left || event.clientX > bounds.right ||
-             event.clientY < bounds.top || event.clientY > bounds.bottom);
+        function dismissPreviewOnBackdrop(dialog) {
+          let backdropPointer = null;
+          function isBackdrop(event) {
+            const bounds = dialog.getBoundingClientRect();
+            return event.target === dialog &&
+              (event.clientX < bounds.left || event.clientX > bounds.right ||
+               event.clientY < bounds.top || event.clientY > bounds.bottom);
+          }
+          dialog.addEventListener("pointerdown", event => {
+            backdropPointer = event.button === 0 && isBackdrop(event) ? event.pointerId : null;
+          });
+          dialog.addEventListener("pointerup", event => {
+            const dismiss = backdropPointer === event.pointerId && isBackdrop(event);
+            backdropPointer = null;
+            if (dismiss) dialog.close();
+          });
+          dialog.addEventListener("pointercancel", () => { backdropPointer = null; });
+          dialog.addEventListener("close", () => { backdropPointer = null; });
         }
-        pagePreviewDialog.addEventListener("pointerdown", event => {
-          previewBackdropPointer = event.button === 0 && isPreviewBackdrop(event) ? event.pointerId : null;
-        });
-        pagePreviewDialog.addEventListener("pointerup", event => {
-          const dismiss = previewBackdropPointer === event.pointerId && isPreviewBackdrop(event);
-          previewBackdropPointer = null;
-          if (dismiss) pagePreviewDialog.close();
-        });
-        pagePreviewDialog.addEventListener("pointercancel", () => { previewBackdropPointer = null; });
+        dismissPreviewOnBackdrop($("#page-preview-dialog"));
+        dismissPreviewOnBackdrop($("#watermark-preview-dialog"));
         $("#page-preview-dialog").addEventListener("close", () => {
           clearPreview(pagePreviewSession);
           $("#page-preview-frame").removeAttribute("srcdoc");

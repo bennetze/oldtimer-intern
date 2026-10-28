@@ -61,7 +61,7 @@ export function pageModified(path, contentDates = []) {
   }
   function sitemapEntries(vehicles, dates) {
     const modified = (path, content = []) => [dates.shared, dates.pages[path], /^\/projekte\/[^/]+\/[^/]+\/$/.test(path) ? dates.vehicle : path.startsWith('/projekte/') ? dates.archive : undefined, ...content].filter(Boolean).sort().at(-1);
-    const entries = ["/", "/ueber-uns/", "/handwerk/", "/projekte/"].map(path => [path, modified(path)]);
+    const entries = ["/", "/ueber-uns/", "/handwerk/", "/projekte/", "/karriere/"].map(path => [path, modified(path)]);
     const groups = A.categories.map(category => vehicles.filter(item => item.category === category).sort((a, b) => a.order - b.order || a.title.localeCompare(b.title, "de")));
     groups.forEach((group, index) => {
       const path = `/projekte/${A.categories[index]}/`, content = group.map(record => record.dateModified);

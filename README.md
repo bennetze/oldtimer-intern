@@ -3,13 +3,13 @@
 ## Repository versions
 
 - `main`: the complete internal editor. This is the version used from the normal
-  `oldtimer-intern` project folder and by the local Website-Werkzeuge launcher.
+  `Intern` project folder and by the local Website-Werkzeuge launcher.
 - `demo`: the separate client demo, served by GitHub Pages. It has no website-folder
   access or website actions. Keep its entry page and workflow separate from `main`.
 
-Keep this `oldtimer-intern` folder on `main`: all Website-Werkzeuge launchers
+Keep this `Intern` folder on `main`: all Website-Werkzeuge launchers
 load it by that fixed sibling path. The client demo belongs in the separate
-`../oldtimer-intern-demo` checkout on `demo`; GitHub Pages serves that branch.
+`../../oldtimer-intern-demo` checkout on `demo`; GitHub Pages serves that branch.
 Do not switch this launcher folder to `demo`. Shared editor changes must preserve
 each version's workflow. The launcher rejects demo/mismatched files and retains
 one set of editor assets until it is restarted.
@@ -18,7 +18,7 @@ one set of editor assets until it is restarted.
 See the [step-by-step user guide](USER-GUIDE.md) for adding cars, changing categories,
 editing content, and combining edits with a category move.
 
-1. Alle Editor-Dateien zusammenlassen und `oldtimer` sowie `oldtimer-intern` nebeneinander ablegen. Im Website-Ordner `Website-Werkzeuge.command` (macOS), `Website-Werkzeuge.cmd` (Windows) oder `Website-Werkzeuge.sh` (Linux) starten. Das öffnet diesen Editor mit integrierten Website-Aktionen. Alternativ `index.html` direkt in Chrome oder Edge für den Offline-ZIP-Workflow öffnen.
+1. Alle Editor-Dateien zusammenlassen und `Website` sowie `Intern` nebeneinander ablegen. Im übergeordneten Ordner `Website` die Datei `Bearbeitung.command` (macOS), `Bearbeitung.cmd` (Windows) oder `Bearbeitung.sh` (Linux) starten. Als Projekt den inneren Ordner `Website` mit `package.json`, `src` und `public` auswählen. Das öffnet diesen Editor mit integrierten Website-Aktionen. Alternativ `index.html` direkt in Chrome oder Edge für den Offline-ZIP-Workflow öffnen.
 2. Den vollständigen Website-Projektordner auswählen. Der Editor liest dessen Fahrzeuge und prüft die Ausgabe gegen dieses Projekt.
 3. Ein Fahrzeug öffnen oder **Neues Fahrzeug** wählen. Deutsche und englische Texte sowie Bildbeschreibungen vollständig ausfüllen. Neue Galeriebeschreibungen starten leer und müssen die sichtbare Aufnahme beschreiben.
 4. Im gestarteten Editor unter **Prüfen & speichern** die Fahrzeugvorschau ansehen. **Im Projekt speichern** bereitet den aktuellen Entwurf automatisch vor. Original und Ziel prüfen und **Speichern bestätigen** wählen. Der Entwurf wird an der richtigen Stelle im Website-Projekt gespeichert; eine Sicherung bleibt erhalten. Kein ZIP-Download, Entpacken oder erneuter Ordnerimport ist nötig.

@@ -26,6 +26,21 @@
   let adapter = null, toolLocked = false, handledTask = null;
 
   const $ = id => document.getElementById('tools-' + id);
+  // Both steps control the same launcher-owned preview, independently of a draft.
+  const projectPreview = document.createElement('section');
+  projectPreview.className = 'website-tools';
+  projectPreview.setAttribute('aria-labelledby', 'project-tools-preview-title');
+  const previewRow = $('preview-start').closest('li').cloneNode(true);
+  previewRow.querySelector('h3').id = 'project-tools-preview-title';
+  previewRow.querySelector('h3').textContent = 'Website ansehen';
+  previewRow.querySelector('p').textContent = 'Die Website-Vorschau kann ohne Fahrzeugauswahl gestartet werden.';
+  projectPreview.append(...previewRow.childNodes, $('preview-detail').cloneNode(true), $('message').cloneNode(true));
+  for (const element of projectPreview.querySelectorAll('[id]')) {
+    if (element.id.startsWith('tools-')) element.id = 'project-' + element.id;
+  }
+  document.querySelector('[data-step="project"] .panel__body').append(projectPreview);
+  const previewControls = [id => $('preview-' + id), id => document.getElementById('project-tools-preview-' + id)];
+  const messages = [$('message'), document.getElementById('project-tools-message')];
   const names = { transfer: 'Fahrzeug speichern', delete: 'Fahrzeug löschen', build: 'Website erstellen', deploy: 'GitHub Pages veröffentlichen' };
   let state, promptId, uploadBusy = false, requestBusy = false, lastRevision = -1, detailState;
 
@@ -40,11 +55,15 @@
     if (!response.ok) throw new Error(result.error || 'Aktion fehlgeschlagen.');
     return result;
   }
-  function message(text) { $('message').hidden = !text; $('message').textContent = text; }
+  function message(text) { for (const element of messages) { element.hidden = !text; element.textContent = text; } }
   function controls() {
     const context = adapter?.context();
     const busy = uploadBusy || requestBusy || state?.task?.status === 'running';
-    for (const id of ['transfer', 'delete', 'build', 'deploy', 'preview-start', 'preview-stop']) $(id).disabled = busy || !context?.ready || context.busy || (['build', 'deploy'].includes(id) && state?.preview?.running) || (['transfer', 'delete'].includes(id) && context.stale) || (id === 'transfer' && !context.valid);
+    for (const id of ['transfer', 'delete', 'build', 'deploy']) $(id).disabled = busy || !context?.ready || context.busy || (['build', 'deploy'].includes(id) && state?.preview?.running) || (['transfer', 'delete'].includes(id) && context.stale) || (id === 'transfer' && !context.valid);
+    for (const preview of previewControls) {
+      preview('start').disabled = busy || !state || !!context?.busy || state.preview.running;
+      preview('stop').disabled = busy || !state || !!context?.busy || !state.preview.running;
+    }
     $('export-hint').textContent = context?.stale ? 'Bitte die Fahrzeugliste nach der Projektänderung aktualisieren.' : context?.valid ? 'Speichert den aktuellen Entwurf nach Prüfung und Bestätigung. Kein ZIP-Download nötig.' : 'Bitte zuerst alle Pflichtangaben vervollständigen.';
     const locked = uploadBusy || state?.task?.status === 'running';
     if (adapter && locked !== toolLocked) { toolLocked = locked; adapter.setBusy(locked); }
@@ -82,12 +101,15 @@
     state = next; controls();
     $('project').textContent = 'Website-Projekt des Startprogramms: ' + next.project;
     projectHint.textContent = 'Bitte diesen Website-Ordner auswählen: ' + next.project;
-    $('preview-start').hidden = next.preview.running;
-    $('preview-stop').hidden = !next.preview.running;
-    $('preview-link').hidden = !next.preview.url;
-    if (next.preview.url) $('preview-link').href = next.preview.url;
-    $('preview-detail').hidden = !next.preview.log;
-    $('preview-log').textContent = next.preview.log;
+    for (const preview of previewControls) {
+      preview('start').hidden = next.preview.running;
+      preview('stop').hidden = !next.preview.running;
+      preview('link').hidden = !next.preview.url;
+      if (next.preview.url) preview('link').href = next.preview.url;
+      else preview('link').removeAttribute('href');
+      preview('detail').hidden = !next.preview.log;
+      preview('log').textContent = next.preview.log;
+    }
     const task = next.task;
     taskSurface(task);
     if (task?.committed && task.status !== 'running' && handledTask !== task.id) {
@@ -139,8 +161,16 @@
     setTimeout(poll, 800);
   }
   for (const name of ['delete', 'build', 'deploy']) $(name).addEventListener('click', () => action(async () => { await api('start', { name }); scrollActivity(); }));
-  $('preview-start').addEventListener('click', () => action(() => api('preview/start', {})));
-  $('preview-stop').addEventListener('click', () => action(() => api('preview/stop', {})));
+  for (const preview of previewControls) {
+    preview('start').addEventListener('click', () => {
+      if (preview('start').disabled) return;
+      action(() => api('preview/start', {}));
+    });
+    preview('stop').addEventListener('click', () => {
+      if (preview('stop').disabled) return;
+      action(() => api('preview/stop', {}));
+    });
+  }
   $('transfer').addEventListener('click', () => action(async () => {
     uploadBusy = true; controls(); $('upload-progress').hidden = false;
     $('upload-progress').textContent = 'Entwurf und Projekt werden geprüft …';

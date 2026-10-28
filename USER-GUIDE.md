@@ -6,15 +6,15 @@ German interface.
 
 ## Before you start
 
-1. Start `Website-Werkzeuge.command` (macOS), `Website-Werkzeuge.cmd` (Windows),
-   or `Website-Werkzeuge.sh` (Linux) from the website folder. The launcher opens
+1. Start `Bearbeitung.command` (macOS), `Bearbeitung.cmd` (Windows),
+   or `Bearbeitung.sh` (Linux) from the parent `Website` folder. The launcher opens
    this same editor with website actions integrated into its final step. Keep the
-   `oldtimer` and `oldtimer-intern` folders beside each other. Use desktop Chrome
+   `Website` and `Intern` folders beside each other. Use desktop Chrome
    or Edge for project-folder access. You can also open `index.html` directly for
    offline review/ZIP export and finish with the existing terminal commands.
 2. Under **01 Projektordner**, click **Projektordner auswählen** and select the
    complete website project: the folder containing `src`, `public`, and
-   `package.json`. On this Mac, it is `/Users/betannet/Developer/oldtimer`.
+   `package.json`. On this Mac, it is `/Users/betannet/Developer/Website/Website`.
 3. Open **02 Fahrzeug auswählen**.
 
 The categories are:
@@ -195,8 +195,8 @@ watermarks remain in place.
 
 ## Which editor to open
 
-Keep the full editor in `oldtimer-intern`, next to the website folder `oldtimer`.
-The Website-Werkzeuge launchers open that full editor. The separate client demo
+Keep the full editor in `Intern`, next to the website folder `Website`.
+The Bearbeitung launchers in their parent folder open that full editor. The separate client demo
 lives in `oldtimer-intern-demo` and on GitHub Pages; it cannot save website files.
 Do not change the full editor's checkout to the `demo` branch.
 After updating the editor or launcher, close the previous launcher with Ctrl+C
