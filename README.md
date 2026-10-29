@@ -145,7 +145,7 @@ its served bytes so additions cannot silently disappear in this mode.
 
 Direct `file://` use remains offline: review and ZIP export never write source files or run commands. The optional local Website-Werkzeuge launcher supports confirmed checked saves and deletion, plus separate preview, build and publication actions. Saving prepares assets and restarts a supervised preview; it does not build `dist` or publish. Publication always requires its own confirmation. Historical browser recovery remains separate from new saves.
 
-The Standard-first palette is white `#ffffff`, red `#ff9aa2`, green `#8dd9ac`, blue `#a7c7ff`, cyan `#81dbe8`, yellow `#f5dc7b` and magenta `#e6a4db`. The existing `om-color-black` class means readable Standard white. No vehicle migration is needed; old palette values normalize to the corresponding restricted class when edited. Arbitrary CSS remains forbidden and unchanged imported HTML is retained.
+The Standard-first palette is white `#ffffff`, red `#e04444`, green `#36b96b`, blue `#4f8fe8`, cyan `#22bfd0`, yellow `#e9c52f` and magenta `#d957bd`. The existing `om-color-black` class means readable Standard white. No vehicle migration is needed; old palette values normalize to the corresponding restricted class when edited. Arbitrary CSS remains forbidden and unchanged imported HTML is retained.
 
 Block removal supports **Letzten Block wiederherstellen** for the last 20 removals in the current draft, without a timer. Restoration uses surviving neighbours and preserves later edits. Images intentionally removed from the pool are omitted with an explanation. Switching successfully to another vehicle clears this history; native text undo remains independent. Moves and removals restore keyboard focus and announce the result.
 

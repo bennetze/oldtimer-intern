@@ -1940,7 +1940,7 @@
           const lower = String(value).toLowerCase().trim();
           const rgb = lower.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
           const color = rgb ? `#${rgb.slice(1).map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}` : lower;
-          return Object.keys(textColors).find(key => textColors[key] === color || presentation.legacyColors[key] === color);
+          return Object.keys(textColors).find(key => textColors[key] === color || presentation.previousColors[key] === color || presentation.legacyColors[key] === color);
         }
         function paletteColor(value) {
           const lower = String(value).toLowerCase();
