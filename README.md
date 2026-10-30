@@ -15,15 +15,15 @@ each version's workflow. The launcher rejects demo/mismatched files and retains
 one set of editor assets until it is restarted.
 
 
-See the [step-by-step user guide](USER-GUIDE.md) for adding cars, changing categories,
-editing content, and combining edits with a category move.
+The steps below cover adding cars, changing categories, editing content, and
+combining edits with a category move.
 
 1. Alle Editor-Dateien zusammenlassen und `Website` sowie `Intern` nebeneinander ablegen. Im übergeordneten Ordner `Website` die Datei `Bearbeitung.command` (macOS), `Bearbeitung.cmd` (Windows) oder `Bearbeitung.sh` (Linux) starten. Als Projekt den inneren Ordner `Website` mit `package.json`, `src` und `public` auswählen. Das öffnet diesen Editor mit integrierten Website-Aktionen. Alternativ `index.html` direkt in Chrome oder Edge für den Offline-ZIP-Workflow öffnen.
 2. Den vollständigen Website-Projektordner auswählen. Der Editor liest dessen Fahrzeuge und prüft die Ausgabe gegen dieses Projekt.
 3. Ein Fahrzeug öffnen oder **Neues Fahrzeug** wählen. Deutsche und englische Texte sowie Bildbeschreibungen vollständig ausfüllen. Neue Galeriebeschreibungen starten leer und müssen die sichtbare Aufnahme beschreiben.
 4. Im gestarteten Editor unter **Prüfen & speichern** die Fahrzeugvorschau ansehen. **Im Projekt speichern** bereitet den aktuellen Entwurf automatisch vor. Original und Ziel prüfen und **Speichern bestätigen** wählen. Der Entwurf wird an der richtigen Stelle im Website-Projekt gespeichert; eine Sicherung bleibt erhalten. Kein ZIP-Download, Entpacken oder erneuter Ordnerimport ist nötig.
 5. **Website-Vorschau starten** und **Website-Vorschau öffnen** wählen. Eine laufende Vorschau wird nach dem Speichern automatisch neu gestartet; die Browserseite anschließend neu laden. Vor weiteren Fahrzeugänderungen **Fahrzeugliste aktualisieren** wählen.
-6. Bei Bedarf die Vorschau stoppen und **Website erstellen** wählen. **GitHub Pages veröffentlichen** ist eine separate, bestätigte Aktion und aktualisiert nur GitHub Pages. Den Produktionshost separat veröffentlichen.
+6. Bei Bedarf die Vorschau stoppen und **Website erstellen** wählen. **Bei IONOS veröffentlichen** ist eine separate, bestätigte Aktion: Sie erstellt die Produktionswebsite und überträgt den Inhalt von `dist/` nach `/` im IONOS-Webspace. Der Zugang wird lokal in `Website/.env.ionos` eingerichtet.
 
 **ZIP herunterladen (optional)** bleibt zur Weitergabe verfügbar. Beim direkten Offline-Start von `index.html` heißt der letzte Schritt weiterhin **Prüfen & exportieren**: ZIP außerhalb des Projekts entpacken und mit dem bestehenden `npm run vehicles:transfer`-Assistenten übernehmen.
 
@@ -31,7 +31,7 @@ Prüfung und optionale ZIP-Erstellung verändern keine Projektdateien. Beim dire
 
 Der Übernahme-Befehl zeigt kurze deutsche Statusmeldungen und fragt vor dem Speichern nach einer Bestätigung (JA). Es öffnet sich keine zusätzliche Seite. Nach dem Speichern erstellt der Befehl die Vorschaubilder. Eine mit `npm run dev` gestartete Vorschau pausiert während der Übernahme und startet anschließend automatisch mit den neuen Fahrzeugen, Bildern und beiden Sprachen neu. Danach die Browserseite neu laden. Eine neue Vorschau mit `npm run dev` starten und mit Strg+C beenden. Wenn das Fahrzeug gespeichert wurde, aber die Vorschauvorbereitung fehlschlägt, nennt der Befehl diesen Unterschied ausdrücklich und behält die Sicherung.
 
-Die Übernahme verwendet den geprüften Website-Importer. Vorhandene Fahrzeuge werden nur nach ausdrücklicher Auswahl des angezeigten Originals ersetzt oder verschoben. Für neue Fahrzeuge, Inhaltsänderungen und Kategoriewechsel gilt derselbe Befehl ohne zusätzliche Optionen. Die Prüfung muss vor der Bestätigung vollständig angesehen werden. Bei einem Kategoriewechsel bleiben deutsche und englische URLs durch Weiterleitungen erreichbar. Für die getrennte Prüfung/Freigabe steht weiterhin `vehicles:review` bereit; siehe `VEHICLE-CONTENT-GUIDE.md` im Website-Projekt.
+Die Übernahme verwendet den geprüften Website-Importer. Vorhandene Fahrzeuge werden nur nach ausdrücklicher Auswahl des angezeigten Originals ersetzt oder verschoben. Für neue Fahrzeuge, Inhaltsänderungen und Kategoriewechsel gilt derselbe Befehl ohne zusätzliche Optionen. Die Prüfung muss vor der Bestätigung vollständig angesehen werden. Bei einem Kategoriewechsel bleiben deutsche und englische URLs durch Weiterleitungen erreichbar. Für die getrennte Prüfung/Freigabe steht weiterhin `vehicles:review` bereit.
 
 Nach der Übernahme die Projektliste neu laden, bevor weitere Fahrzeuge exportiert werden. Externe Projektänderungen machen die vorherige Projektprüfung ungültig. Beim Schließen gehen nicht exportierte Entwürfe verloren; ungespeicherte Änderungen werden vor dem Wechsel abgefragt.
 

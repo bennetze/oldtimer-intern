@@ -41,7 +41,7 @@
   document.querySelector('[data-step="project"] .panel__body').append(projectPreview);
   const previewControls = [id => $('preview-' + id), id => document.getElementById('project-tools-preview-' + id)];
   const messages = [$('message'), document.getElementById('project-tools-message')];
-  const names = { transfer: 'Fahrzeug speichern', delete: 'Fahrzeug löschen', build: 'Website erstellen', deploy: 'GitHub Pages veröffentlichen' };
+  const names = { transfer: 'Fahrzeug speichern', delete: 'Fahrzeug löschen', build: 'Website erstellen', deploy: 'Bei IONOS veröffentlichen' };
   let state, promptId, uploadBusy = false, requestBusy = false, lastRevision = -1, detailState;
 
 
@@ -207,7 +207,7 @@
   // Replace terminal-only guidance in hosted mode, preserving the file:// workflow.
   const guide = document.querySelector('#after-export ol');
   guide.replaceChildren();
-  for (const text of ['Zum Speichern des aktuellen Entwurfs „Im Projekt speichern“ wählen; die ZIP ist dafür nicht nötig.', 'Original und Ziel prüfen und „Speichern bestätigen“ wählen.', 'Die Website-Vorschau unten starten oder neu laden. Danach die Fahrzeugliste aktualisieren.', 'Bei Bedarf die Website separat erstellen oder für GitHub Pages veröffentlichen.']) {
+  for (const text of ['Zum Speichern des aktuellen Entwurfs „Im Projekt speichern“ wählen; die ZIP ist dafür nicht nötig.', 'Original und Ziel prüfen und „Speichern bestätigen“ wählen.', 'Die Website-Vorschau unten starten oder neu laden. Danach die Fahrzeugliste aktualisieren.', 'Bei Bedarf die Website separat erstellen oder bei IONOS veröffentlichen.']) {
     const item = document.createElement('li'); item.textContent = text; guide.append(item);
   }
   window.VehicleWebsiteTools = {
